@@ -115,3 +115,13 @@ Append-only chronological log of significant changes to this project. Each entry
   still green — no code changed, doc-only task.
 - Files touched: `.claude/skills/draft-broker-email/SKILL.md`,
   `knowledge/connections/issue-to-template-flow.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | issue-to-template-flow review fixes
+
+- Added missing matrix sections for `pro-lookup` and `return-reason` (brief required every issue).
+- Corrected the `damage`/60114821897 arc: added an honesty note that it is reconstructed across
+  two different email subjects (not one CLI-reproducible thread), and relabeled `declined`/
+  `offered-alternative` as customer-relayed (non-broker) per response-taxonomy; only `accepted`
+  ("Working on this") is a real broker quote.
+- Flagged `quoted-cost-eta` as a known matrix gap.
+- Files touched: `knowledge/connections/issue-to-template-flow.md`, `knowledge/log.md`.

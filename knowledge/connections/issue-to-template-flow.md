@@ -111,21 +111,28 @@ How the two classification dimensions combine to pick a template and shape a dra
   declined 措辞)——若 broker 表示因已提货/已在途无法取消(或需收费),`{cancel_reason}`
   改为事实陈述+疑问句请对方确认收费口径,不代客户主张免责(同 `return-reason` 的 Tone)。
 
-### `damage`(模板:`templates/damage.md`)—— 唯一有真实 `offered-alternative` 案例的 issue
+### `damage`(模板:`templates/damage.md`)
 
-超尺寸/货损线程 `cases/60114821897` 是典型多轮案例,四种 response 依次出现:
+**关于证据的诚实说明:** BOL `60114821897` 在 `LTL-mail/` 下对应**两个不同主题**的原始
+邮件(一个较早的 `pickup` 线程、一个 `Urgent … Crate Damaged` 货损线程),并非同一线程的
+多份快照;`scripts/parse_eml.py` 每次运行会**覆盖** `cases/60114821897/thread.md`,因此下面
+的多轮 arc **无法**由单条 CLI 命令重建,是跨这两个线程人工归纳的。其中只有 `accepted` 一格
+有 broker 原话;`declined`/`offered-alternative` 两格是**客户转述的承运商立场**(非 broker
+原话),已删除的历史 `hs.eml` 里 broker 曾据此给出 terminal 自提方案。据此使用,不要当作
+broker 的既成表态。
 
-- **`declined`**(客户转述承运商立场:常规/小车无法送达)——`{customer_request}`
-  说明为何常规配送不可行,请求 broker 联系承运商确认可行方案。
-- **`offered-alternative`**(客户转述:"may need a flatbed truck or box truck to
-  deliver to the customer's door")——`{customer_request}` 明确提出具体替代方案
-  (平板车/箱式车,或改到 terminal 自提),让 broker 向承运商确认是否可行及是否有
-  额外费用(不承诺理赔口径,不臆造费用数字)。
-- **`accepted`**(真实引文:"Working on this",`cases/60114821897`)——默认分支:
-  Skeleton 原句,`{damage_desc}` 描述损坏事实,`{customer_request}` 补充紧急送达
-  的具体日期要求(如"July 7, or the earliest possible date"),语气紧迫但专业。
-- **客户接受 terminal 自提后 → 转 `pickup`**——一旦客户同意改自提,issue 类型从
-  `damage` 切换为 `pickup`,后续邮件改用 `templates/pickup.md`(自提地址填 terminal
+- **`declined`**(推断/客户转述,**语料中无 broker 原话**:客户称常规/小车无法送达)——
+  `{customer_request}` 说明为何常规配送不可行,请求 broker 联系承运商确认可行方案。
+- **`offered-alternative`**(客户转述承运商方案,**非 broker 原话**:"may need a flatbed
+  truck or box truck to deliver to the customer's door",`cases/60114821897` Turn 1 由
+  `hs@justnanoinc.com` 所写)——`{customer_request}` 明确提出具体替代方案(平板车/箱式车,
+  或改到 terminal 自提),让 broker 向承运商确认是否可行及是否有额外费用(不承诺理赔口径,
+  不臆造费用数字)。
+- **`accepted`**(真实 broker 引文:"Working on this",`cases/60114821897`)——默认分支:
+  Skeleton 原句,`{damage_desc}` 描述损坏事实,`{customer_request}` 补充紧急送达的具体日期
+  要求(如"July 7, or the earliest possible date"),语气紧迫但专业。
+- **客户接受 terminal 自提后 → 转 `pickup`**(推断的后续路径)——一旦客户同意改自提,issue
+  类型从 `damage` 切换为 `pickup`,后续邮件改用 `templates/pickup.md`(自提地址填 terminal
   地址),不再用 damage 模板的"紧急/损坏"措辞。
 
 ### `reconsignment`(模板:`templates/reconsignment.md`)
@@ -141,6 +148,30 @@ How the two classification dimensions combine to pick a template and shape a dra
 - **`declined`**(语料中无 reconsignment 专属引文)——若 broker 表示该地址无法配送
   (超区/无法预约等),改为询问 broker 建议的替代方案,而不是重复原地址要求。
 
+### `pro-lookup`(模板:`templates/pro-lookup.md`)
+
+- **`accepted`**(真实引文:"Checking",`cases/60114662390`)——默认分支:Skeleton 原句,
+  一句话请求 broker 提供/核对该 BOL 的 PRO#;无需额外 slot(pro-lookup 正是要问 PRO#,
+  故不含 `{pro_clause}`)。
+- **`needs-info`**(推断默认,语料中无 pro-lookup 专属引文;按通用 needs-info 处理)——
+  若 broker 反问是哪一票/发货日期以便定位,`{customer_request}` 直接补充该定位信息
+  (发货日期、收货方、参考号),缺失则 `[[MISSING: …]]`,不要重复"请给 PRO#"的原始请求。
+- **`declined`**(推断,语料中无专属引文)——极少见;若 broker 表示暂时查不到 PRO#,改为
+  询问预计何时可提供,而非重复原始请求。
+
+### `return-reason`(模板:`templates/return-reason.md`)
+
+- **`declined`**(真实引文:"The carrier will still apply charges, as the freight was
+  tendered, picked up, and later returned to the shipper.",`cases/60113820374`)——这是
+  return-reason 语料中唯一有真实引文的分支:broker 坚持收费。`{return_reason}` 改为**事实
+  陈述 + 疑问句**请对方确认收费口径与责任归属,**不代客户主张免责**(呼应 damage/cancellation
+  的 declined Tone:不承诺理赔,不臆造费用)。
+- **`needs-info`**(推断默认,语料中无专属引文;按通用 needs-info 处理)——若 broker 反问
+  具体是哪一票/退运时间,`{return_reason}` 补充该信息;同时索要 POD 与司机备注(客户原始诉求
+  常含此项,见 `cases/60113820374` Turn 4)。
+- **`accepted`**(推断,语料中无专属引文)——若 broker 表示会去核实退运原因,默认分支即可,
+  `{return_reason}` 留空或仅一句背景。
+
 ## 消歧提醒(呼应 issue-taxonomy 的说明)
 
 - `delivery-window` 改的是**时间**,`reconsignment` 改的是**地址**——即便 broker
@@ -148,3 +179,6 @@ How the two classification dimensions combine to pick a template and shape a dra
   issue 类型会导致漏填 `{new_address}` 或 `{requested_window}`。
 - 语料中不存在独立的 `delivery-access` issue slug(已并入 `damage`/`pickup`,见
   `issue-taxonomy.md`);起草时不要引用不存在的 `templates/delivery-access.md`。
+- **已知缺口:** response type `quoted-cost-eta` 在本矩阵与判定优先级链中未单独展开——语料中
+  仅见费用口径(见 `return-reason` 的 `declined`),无硬性 ETA 承诺(见 `response-taxonomy.md`)。
+  一旦出现明确的费用/到达日期回复,按 same-task 规则在相应 issue 下补一条真实引文分支。
