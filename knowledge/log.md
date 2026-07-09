@@ -216,3 +216,47 @@ Append-only chronological log of significant changes to this project. Each entry
 - Files: `templates/billing-dispute.md`, `tests/test_billing_template.py`,
   `knowledge/concepts/drafting/issue-taxonomy.md`,
   `knowledge/concepts/drafting/response-taxonomy.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | corpus-wide triage report + matured v2 distribution (task 4)
+
+- TDD: wrote `tests/test_triage_report.py` (asserts `sum(counts) == 922`, the three bucket
+  keys present, `billing-dispute >= 20`, `unknown_shipment` is a list); confirmed it FAILed
+  (`ModuleNotFoundError: No module named 'scripts.triage_report'`), then added
+  `scripts/triage_report.py` (`triage_report(dirs=CORPUS_DIRS)` — runs `parse_eml` + `triage`
+  over every file in the merged 922-file corpus, flags `shipment`-bucketed mail that
+  `classify_issue(subject)` still can't sub-route as `unknown_shipment`) and confirmed PASS.
+- Ran the report and read real body samples across all three buckets plus `unknown_shipment`;
+  found and fixed three genuine mis-classifications in `scripts/triage.py`'s `_SKIP_BODY`
+  (all verified corpus-wide for zero collateral before landing):
+  1. A 23-snapshot drayage rate-quote thread ("Drayage moves --- 40HQ from Phoenix Terminal
+     to Tempe, AZ") asks "Please advise: Drayage cost / Free time at terminal / Any
+     additional charges" — the literal "additional charge(s)" was tripping `_BILLING`,
+     misrouting a plain quote request into `billing-dispute`. Drayage is out of v2 scope
+     (`skip`) per the existing "decision | v2 scope" log entry. Added
+     `drayage cost|free time at terminal`.
+  2. 7 standalone Priority1 sales-rep outreach emails ("Priority1 Business.eml", "Let's Kick
+     Off ... .eml", etc. — "earn your business", "quote your upcoming shipments",
+     "competitive pricing") were landing in `shipment` because they didn't hit any existing
+     promo keyword. Added `earn (your|more) business|earn the right to move|quote (them|your
+     upcoming|more shipments|them out for you)|competitive (pricing|rates)`; manually
+     confirmed each hit is a standalone outreach email, not a reply thread that would get
+     silently skipped via a quoted-history false positive.
+  3. 18 automated invoice-notification emails ("JUSTNANO INC-(298296-P1) Priority1 Invoice
+     ....eml") are the same "Dear Customer, Attached are your invoice(s) ... log in to view
+     all invoices ... 2.5% surcharge" boilerplate as the `noreply@priority1.com`-sent
+     statements already caught by `_SKIP_SENDER`, but forwarded/cc'd through a human mailbox
+     (Kaylin Shaw / Melody Sparks) so the sender check missed them. Added the three
+     boilerplate phrases; verified across all 248 "Priority1 Invoice" files in the corpus
+     (230 already `skip`, these 18 now join them, zero collateral into `billing-dispute` or
+     other `shipment` files).
+- Real distribution after refinement (922 files total): `skip` 327, `billing-dispute` 60,
+  `shipment` 535; `unknown_shipment` (shipment mail whose subject `classify_issue` still
+  can't sub-route — expected, deferred to body-level sub-classification) 203. Before the
+  three fixes: `skip` 279, `billing-dispute` 83, `shipment` 560, `unknown_shipment` 228.
+  `billing-dispute >= 20` holds comfortably (60), no threshold adjustment needed.
+- Matured `concepts/drafting/issue-taxonomy.md`: added "## v2 triage 分布(实测 2026-07-09)"
+  with the real counts table and a full writeup of the three `_SKIP_BODY` refinements
+  (with the exact real-body quotes that justified each) and the before/after comparison.
+- Full suite green: `python3 -m pytest -q` → 21 passed.
+- Files: `scripts/triage_report.py`, `tests/test_triage_report.py`, `scripts/triage.py`,
+  `knowledge/concepts/drafting/issue-taxonomy.md`, `knowledge/log.md`.

@@ -60,3 +60,52 @@ v2 引入了 `triage` 作为**分类前的前置维度**,先于本表所有 issu
   additional charge/out of route/accessorial/reweigh/reclass 等关键词)。因此表中"计数"列填 `—`,
   `tests/test_taxonomy.py`(仅跑 `LTL-mail/`)不覆盖它;其正确性由 `tests/test_triage.py` 与
   `tests/test_billing_template.py` 验证。
+
+## v2 triage 分布(实测 2026-07-09)
+
+对合并语料 `LTL-mail/`(71)+ `LTL-mail-2/`(851)= **922 个文件**全量跑 `scripts/triage_report.py`
+的 `triage_report()`(逐文件 `parse_eml` → `triage(body, sender)`),得到的真实三桶分布:
+
+| 桶 | 计数 | 占比 |
+| --- | --- | --- |
+| `skip`(非可执行,不起草) | 327 | 35.5% |
+| `billing-dispute`(FFBA/accessorial 等计费争议) | 60 | 6.5% |
+| `shipment`(货运类诉求总闸门) | 535 | 58.0% |
+| **合计** | **922** | 100% |
+
+其中 `shipment` 535 个文件里,`classify_issue(subject)` 仍判为 `uncategorized` 的有
+**203 个**(`unknown_shipment`)——这些是主题行本身无关键词(裸 BOL 号、"Payment Update"、
+"NEW POC REQUEST"、"Suspected ... API" 等)的运输类邮件,**仍需正文级细分**才能落到具体 issue
+slug;这是预期行为(deferred),不是 triage 的缺陷——`triage` 只负责三桶前置分流,九类 issue 的
+主题/正文细分是下一层级的工作。
+
+**本任务内基于真实正文样本对 `scripts/triage.py` 的 `_SKIP_BODY` 做了三处精修**(均为验证过
+的、零附带损伤的正文短语,详见 `triage.py` 内联注释):
+
+1. **drayage 报价询价 → `skip`**:"Drayage moves --- 40HQ from Phoenix Terminal to Tempe, AZ"
+   一条线程(23 份快照)里,broker 报价请求正文写"Please advise: Drayage cost / Free time at
+   terminal / Any additional charges"——`additional charge(s)` 命中了 `_BILLING`,导致 23 个
+   文件被误判为 `billing-dispute`。而 drayage 报价询价按 v2 范围决策本就该 `skip`(见上方
+   "decision | v2 scope" 日志)。新增 `drayage cost|free time at terminal` 两个短语,精确捕获
+   该线程,零误伤(全库扫描确认这两短语只出现在这 23 个文件里)。
+2. **broker 销售话术 → `skip`**:corpus 中大量 Priority1 客户经理(Jalen Turner 等)群发的纯
+   业务开发邮件("Priority1 Business.eml"、"Let's Kick Off ... .eml"、"Happy Friday! Let's Lock
+   In Your Best Shipping Rates.eml" 等 7 个独立文件),正文含"earn your business"/"quote your
+   upcoming shipments"/"competitive pricing"等纯促销话术,却因不含现有 `_SKIP_BODY` 关键词而落
+   入 `shipment`。新增 `earn (your|more) business|earn the right to move|quote (them|your
+   upcoming|more shipments|them out for you)|competitive (pricing|rates)`;逐个人工核对这 7
+   个文件均为独立群发邮件(非 reply 线程),排除了"命中回复线程里引用的历史促销原文导致误伤真实
+   诉求"的风险后才加入。
+3. **人工转发的自动开票通知 → `skip`**:18 个 "JUSTNANO INC-(298296-P1) Priority1 Invoice
+   ....eml" 文件是与 `noreply@priority1.com` 发出的 statement 完全同源的自动开票模板("Dear
+   Customer, Attached are your invoice(s) ... log in to view all invoices ... 2.5% surcharge
+   will apply to all credit card"),只是经人工邮箱(Kaylin Shaw / Melody Sparks)转发/抄送,未
+   命中 `_SKIP_SENDER`(要求 `noreply@priority1`)。新增三条模板短语,全库验证零误伤(248 个
+   "Priority1 Invoice" 文件里,命中这三短语的 230 个已是 `skip`,新增后另外 18 个 `shipment`
+   一并转为 `skip`,无一命中 `billing-dispute`/其余 `shipment` 文件)。
+
+精修前后对照(精修前 = 仅按 task-3 的规则跑全量):`skip` 279→327(+48)、
+`billing-dispute` 83→60(−23,即上述 drayage 线程)、`shipment` 560→535(−25,即上述销售
+话术 7 个 + 发票 18 个);`unknown_shipment` 228→203(−25,同步减少,因为被移出的销售话术/
+发票邮件此前也落在 `uncategorized` 里,拉低了原本的信噪比)。全部通过人工读正文验证,未做"对
+着数字硬调"的规则调整。
