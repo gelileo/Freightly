@@ -173,3 +173,16 @@ Append-only chronological log of significant changes to this project. Each entry
 - Files: `knowledge/concepts/drafting/issue-taxonomy.md`, `templates/delivery-access.md`,
   `knowledge/connections/issue-to-template-flow.md`,
   `knowledge/concepts/drafting/template-system.md`, `scripts/corpus_report.py`, `knowledge/log.md`.
+
+## [2026-07-09] decision | v2 scope (LTL-mail-2 corpus)
+
+- New corpus `LTL-mail-2/` (851 files) analyzed: it's Justnano's full broker inbox —
+  ~330 statements, 36 FFBA billing-audit disputes, ~250+ shipment issues (many bare-BOL /
+  `BOL#` subjects), ~25 drayage/container, ~70 sales/promo, plus meetings/auto-replies.
+  Superset of `LTL-mail/` by BOL (all 24 old ⊂ 141 new).
+- Decisions (user): scope = shipment issues + billing/FFBA disputes (drayage & marketing out,
+  non-actionable → skip); corpus = keep BOTH dirs merged; classification → BODY-based
+  (subject-only hit 71% uncategorized here).
+- Recorded as "Planned v2" in `platform-architecture.md`; next step is a v2 implementation
+  plan (writing-plans) then subagent execution. v1 remains as-built until then.
+- Files: `knowledge/concepts/drafting/platform-architecture.md`, `knowledge/log.md`.

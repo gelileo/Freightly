@@ -114,6 +114,25 @@ classification-to-draft detail.
 - Taxonomy/templates: validated by re-running classification over labeled corpus examples
   and checking the chosen category/template matches the recorded example.
 
+## Planned v2 (scope decided 2026-07-09 — NOT yet built)
+
+Triggered by the `LTL-mail-2/` corpus (851 files = Justnano's full broker inbox). Decisions:
+
+- **Scope expands** from shipment-issue drafting to also cover **billing / FFBA disputes**
+  (Priority1 statements + Free Freight Bill Audit pricing-variance / extra-charge disputes —
+  ~366 emails, real money). Drayage/container mail and broker marketing stay **out of scope**;
+  non-actionable mail (promo, statements-noise, meetings, auto-replies) gets an explicit
+  **skip / non-actionable** classification so nothing is drafted for it.
+- **Corpus = both `LTL-mail/` + `LTL-mail-2/`, merged** (dedupe across two filename
+  conventions: old `Re_ <subject>.eml` vs new `<subject>.eml`). `LTL-mail-2` is a superset by
+  BOL (all 24 old ⊂ 141) but keep both per decision.
+- **Classification moves to body-based** (parsed newest-turn body), replacing subject-only —
+  which hit 71% uncategorized on `LTL-mail-2` because ~139 shipment threads have bare-BOL /
+  `BOL# …` subjects with no keyword. This also makes `delivery-access` and skip-detection
+  classifiable, and requires re-validating the taxonomy over the merged ~900-file corpus.
+
+Until built, the v1 subject-based flow above remains the as-built behavior.
+
 ## Out of scope (YAGNI)
 
 - Sending email / mailbox integration.
