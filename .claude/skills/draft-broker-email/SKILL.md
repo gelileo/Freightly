@@ -14,6 +14,11 @@ description: Use when the shipper (Justnano) needs to draft an English email to 
 1. **定位 case**:向用户确认 BOL,或从给定 `.eml` 解析。运行
    `python3 scripts/parse_eml.py "<file.eml>"` 生成 `cases/<BOL>/thread.md`;读它。
    若 `cases/<BOL>/thread.md` 已存在(之前已解析过),直接读取,无需重新解析。
+   **快照选择(重要):** 同一 BOL 常有多份快照文件(`…(1)…(8).eml`),它们是同一线程的
+   不同增长阶段;`parse_eml.py` 每次运行会**覆盖** `thread.md`。务必解析**体积最大/最新**的
+   那份,否则 thread 会漏掉 broker 最新的回复,导致第 3 步的 response 分类基于过时线程。
+   可用 `scripts/corpus_report.py` 同目录的 `dedupe_snapshots([...Path])`(返回每个 BOL
+   体积最大的文件)辅助选出正确快照。
 2. **粘贴客户诉求**:请用户粘贴该问题的微信中文原文(若有)。
 3. **分类(两维)**:
    - issue type:用 `scripts/corpus_report.py` 的 `classify_issue`(按邮件主题匹配),

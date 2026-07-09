@@ -142,3 +142,18 @@ Append-only chronological log of significant changes to this project. Each entry
 - All knowledge articles now `status: mature`. Full suite: 13 passed.
 - Files touched: `knowledge/concepts/drafting/platform-architecture.md`,
   `knowledge/concepts/freight/parties-and-roles.md`, `CLAUDE.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | final whole-branch review fixes
+
+- Reconciled `concepts/drafting/eml-parsing.md` (matured) with as-built behavior, per the
+  final review: (a) `Turn` = marker + body (no separate sender/timestamp fields); (b)
+  `dedupe_snapshots()` is a library function the CLI does not auto-call; (c) Front signature
+  text/`[Sent from Front]` artifacts are NOT stripped (only inline image parts discarded);
+  (d) multi-BOL subjects write only the primary `bol[0]` (no fan-out).
+- Closed the stale-snapshot risk: `SKILL.md` step 1 now instructs picking the largest/most
+  recent snapshot (or using `dedupe_snapshots`) before classifying, so response-type isn't
+  computed from an out-of-date thread.
+- Deferred (documented) Minor items: split_turns over-split on stray "From:" lines (no data
+  loss), bol[0] DRY/UNKNOWN-branch, quoted-cost-eta matrix gap, mid-module import placement.
+- Files touched: `knowledge/concepts/drafting/eml-parsing.md`,
+  `.claude/skills/draft-broker-email/SKILL.md`, `knowledge/log.md`.
