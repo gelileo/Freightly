@@ -35,3 +35,20 @@ Append-only chronological log of significant changes to this project. Each entry
   unit tests" to-do items into a current-state description; `status: thin` → `mature`.
 - Files touched: `scripts/parse_eml.py`, `tests/test_parse_eml.py`,
   `knowledge/concepts/drafting/eml-parsing.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | corpus classifier + matured taxonomy
+
+- Added `scripts/corpus_report.py` (`classify_issue`, `corpus_report`) + `tests/test_taxonomy.py`.
+  All 71 `LTL-mail/*.eml` classify with `unknown == []`.
+- **New category discovered by the full-corpus pass (same-task rule):** `reconsignment` —
+  bare-BOL subjects (e.g. `Re: 60113972680`) whose body asks to reconsign to a new delivery
+  address. Added to both `RULES` and `issue-taxonomy.md`.
+- Matured `concepts/drafting/issue-taxonomy.md` (9 categories, real BOL counts, example files)
+  and `concepts/drafting/response-taxonomy.md` (6 categories, each with a real broker quote
+  sampled from generated `cases/<BOL>/thread.md`). Both `status: thin` → `mature`.
+- Noted honestly: `quoted-cost-eta` has a real cost example but no hard-ETA example in the
+  sampled threads; `delivery-access` folded into `damage`/`pickup` (no standalone subject in
+  the 71 files).
+- Files touched: `scripts/corpus_report.py`, `tests/test_taxonomy.py`,
+  `knowledge/concepts/drafting/issue-taxonomy.md`,
+  `knowledge/concepts/drafting/response-taxonomy.md`, `knowledge/log.md`.
