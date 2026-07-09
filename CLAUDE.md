@@ -120,5 +120,7 @@ python3 scripts/parse_eml.py "LTL-mail/<file>.eml"
 
 ## Notes
 
-- Git hooks and the GitHub drift-check Action from living-doc are intentionally **not**
-  installed — this folder is not a git repository. Add them if it later becomes one.
+- This folder **is** a git repository (initialized during implementation). Living-doc's git
+  hooks and GitHub drift-check Action are intentionally **not** installed; the same-task rule
+  is enforced by the agent checklist above. Add the hooks/Action if you want automated
+  enforcement.
