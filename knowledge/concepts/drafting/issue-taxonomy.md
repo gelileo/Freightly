@@ -25,7 +25,7 @@ references:
 | `pod-request` | 索取签收凭证(Proof of Delivery)。 | 10 | `Re_ POD --- 60114592263.eml`、`Re_ POD --- 60113820484.eml`、`Re_ POD --- 60113837994.eml` |
 | `cancellation` | 取消一票 shipment(有时附带"我方账号只能下单不能取消,请协助")。 | 6 | `Re_ Cancel shipment --- 60114304778.eml`、`Re_ Cancel --- 60113887167.eml`、`Re_ Cancel ---- 60114838856, 60114838936.eml` |
 | `reconsignment` | 改配/重新配送到新地址(主题仅为裸 BOL 号、无关键词;正文要求 reconsign)。**本类别由全语料扫描新发现**,种子表原先没有。 | 4 | `Re_ 60113972680.eml`(及其 `(1)(2)(3)` 快照) |
-| `delivery-window` | 预约、指定或更改送达时间窗(如"6 号中午前直送、无需预约")。 | 4 | `Re_ Delivery window --- 60114839031.eml`、`Re_ Statue ---60114839031.eml` |
+| `delivery-window` | 预约、指定或更改送达时间窗(如"6 号中午前直送、无需预约")。 | 4 | `Re_ Delivery window --- 60114839031.eml`(及其 `(1)(2)(3)` 快照) |
 | `damage` | 货物损坏(如木箱底部破损)并请求紧急/尽早送达。 | 2 | `Re_ Urgent Delivery Request – Crate Damaged _ 60114821897.eml`、`Re_ 回复： Urgent Delivery Request – Crate Damaged _ 60114821897.eml` |
 | `return-reason` | 询问退运原因,并索要 POD / 司机备注(常牵涉是否应付费用)。 | 1 | `Re_ Request for Return Reason --- 60113820374.eml` |
 

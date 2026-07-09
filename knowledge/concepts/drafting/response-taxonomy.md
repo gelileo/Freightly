@@ -17,14 +17,14 @@ references:
 
 ## 类别(6 类)
 
-| Slug | 中文定义 | 真实引文(broker 原话,英文保留) | 出处 |
+| Slug | 中文定义 | 真实引文/依据(英文原文保留;注明说话人) | 出处 |
 | --- | --- | --- | --- |
-| `accepted` | 接受诉求并已在推进/受理,但尚未给出结果。 | "reaching out to carrier!" / "Working on this" | `cases/60114338678`(pickup)、`cases/60114821897`(damage) |
-| `declined` | 拒绝诉求或明确不予让步(如坚持收费)。 | "The carrier will still apply charges, as the freight was tendered, picked up, and later returned to the shipper." | `cases/60113820374`(return-reason) |
-| `offered-alternative` | 提出替代方案(如改用平板/箱式车、或收货方到 terminal 自提)。 | 承运商反馈"may need a flatbed truck or box truck to deliver to the customer's door"(经 shipper 转述,经纪人据此协调)。 | `cases/60114821897`(damage) |
-| `needs-info` | 需要更多信息才能推进(预约、联系人、地址、PRO 等)。 | "Can you confirm if the consignee still requires an appointment? Do you have an updated point of contact?" | `cases/60113972680`(reconsignment) |
-| `quoted-cost-eta` | 给出费用/收费口径或时间口径。语料中**费用**类明确(见 return-reason 收费说明);**明确到达日期(ETA)**在已采样线程中罕见——多为 "Checking"/"Per carrier:" 之类过程性答复,尚无硬性日期承诺。 | "The carrier will still apply charges … "(费用口径);ETA 暂无硬性示例。 | `cases/60113820374` |
-| `confirmed-completed` | 确认动作已完成(已取消、已送达、POD 已附)。 | "canceled" / "Per carrier: POD attached" | `cases/60114304778`(cancellation)、`cases/60114476384`(shipment-status) |
+| `accepted` | 接受诉求并已在推进/受理,但尚未给出结果。 | broker 原话:"reaching out to carrier!" / "Working on this" | `cases/60114338678`(pickup)、`cases/60114821897`(damage) |
+| `declined` | 拒绝诉求或明确不予让步(如坚持收费)。 | broker 原话:"The carrier will still apply charges, as the freight was tendered, picked up, and later returned to the shipper." | `cases/60113820374`(return-reason) |
+| `offered-alternative` | 提出替代方案(如改用平板/箱式车、或收货方到 terminal 自提)。 | **注意:此依据非 broker 原话**——为客户转述承运商方案:"may need a flatbed truck or box truck to deliver to the customer's door"。语料中经纪人**主动、独立**给出替代方案的明确引文较少;此格记录的是最接近的替代方案依据。 | `cases/60114821897`(damage,Turn 1 由 `hs@justnanoinc.com` 所写) |
+| `needs-info` | 需要更多信息才能推进(预约、联系人、地址、PRO 等)。 | broker 原话:"Can you confirm if the consignee still requires an appointment? Do you have an updated point of contact?" | `cases/60113972680`(reconsignment) |
+| `quoted-cost-eta` | 给出费用/收费口径或时间口径。语料中**费用**类明确(见 return-reason 收费说明);**明确到达日期(ETA)**在已采样线程中罕见——多为 "Checking"/"Per carrier:" 之类过程性答复,尚无硬性日期承诺。 | broker 原话(费用口径):"The carrier will still apply charges …";ETA 暂无硬性示例。 | `cases/60113820374` |
+| `confirmed-completed` | 确认动作已完成(已取消、已送达、POD 已附)。 | broker 原话:"canceled" / "Per carrier: POD attached" | `cases/60114304778`(cancellation)、`cases/60114476384`(shipment-status) |
 
 ## 优先级与判定说明
 
