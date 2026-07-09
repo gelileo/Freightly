@@ -52,3 +52,33 @@ Append-only chronological log of significant changes to this project. Each entry
 - Files touched: `scripts/corpus_report.py`, `tests/test_taxonomy.py`,
   `knowledge/concepts/drafting/issue-taxonomy.md`,
   `knowledge/concepts/drafting/response-taxonomy.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | broker-email templates per issue type + matured template-system
+
+- Added `templates/<slug>.md` for all 9 issue slugs from `scripts/corpus_report.py`'s live
+  scan: `pickup`, `shipment-status`, `pro-lookup`, `pod-request`, `cancellation`,
+  `reconsignment`, `delivery-window`, `damage`, `return-reason`. Each has the four required
+  sections (`## Skeleton` / `## Slots` / `## Tone` / `## Examples`); skeleton bodies are
+  English (sent to the broker), author-facing notes are Chinese. No `delivery-access.md` —
+  confirmed via `corpus_report()` that slug is not in the current 9 (folded into
+  `damage`/`pickup`, already noted in `issue-taxonomy.md`).
+- Grounded every template in a real parsed thread: `pickup` → `cases/60114338678`,
+  `shipment-status` → `cases/60114476384` + `cases/60114356900`, `pod-request` →
+  `cases/60114592263`, `delivery-window` → `cases/60114839031`, `cancellation` →
+  `cases/60114304778`, `damage` → `cases/60114821897`, `return-reason` →
+  `cases/60113820374`, `pro-lookup` → `cases/60114662390`, `reconsignment` →
+  `cases/60113972680` (customer reconsign to `122 Timberline Dr, Unit 100, Spring Hill,
+  TN 37174`; broker `needs-info` reply quoted verbatim).
+- Added `tests/test_templates.py` (brief's exact test): asserts every slug from
+  `corpus_report("LTL-mail")["by_issue"]` has a `templates/<slug>.md` with all four
+  sections. Ran RED (missing `reconsignment.md`) before authoring, GREEN after.
+- Matured `knowledge/concepts/drafting/template-system.md`: replaced the "To do
+  (implementation)" section with the current state — the fixed `{shipper_signoff}` full
+  text (Hughson Huang's real Justnano signature, sourced from `cases/60114338678/thread.md`
+  Turn 1), the final per-template slot vocabulary, and the "one template per issue slug,
+  four sections" convention. `status: thin` → `mature`.
+- Files touched: `templates/pickup.md`, `templates/shipment-status.md`,
+  `templates/pro-lookup.md`, `templates/pod-request.md`, `templates/cancellation.md`,
+  `templates/reconsignment.md`, `templates/delivery-window.md`, `templates/damage.md`,
+  `templates/return-reason.md`, `tests/test_templates.py`,
+  `knowledge/concepts/drafting/template-system.md`, `knowledge/log.md`.
