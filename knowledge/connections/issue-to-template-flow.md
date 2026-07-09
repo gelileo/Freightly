@@ -23,6 +23,10 @@ How the two classification dimensions combine to pick a template and shape a dra
   决定同一模板下*用哪种措辞/分支*——例如 `pickup` 模板在上一轮 broker 回复是
   `needs-info`(补充缺失信息)时,与是 `declined`(转达客户下一步指示或接受替代方案)
   时,写法不同。
+- **v2 前提(triage):** 本文档的两维矩阵只适用于 `scripts/triage.py` 的 `triage(body,
+  sender)` 判定为 `billing-dispute` 或 `shipment` 的来信——`triage == skip` 的邮件
+  (广告推广/月结 statement/drayage 报价/会议邀请/自动回复等)在 `SKILL.md` 第 2 步的
+  前置分流阶段就已终止流程,**永远不进入本矩阵**,不分类、不选模板、不起草。
 
 ## 两种入口(完整循环)
 
@@ -188,6 +192,31 @@ broker 的既成表态。
   (自提地址填 terminal 地址),不再用 delivery-access 措辞。
 - **`accepted`**(推断)——若 broker 表示会去协调替代车型,默认分支即可,`{proposed_resolution}`
   聚焦"请确认可行车型与最早日期"。
+
+### `billing-dispute`(模板:`templates/billing-dispute.md`)—— v2 新增
+
+与上面 9 个 issue slug 不同,`billing-dispute` 的 issue type 由 `scripts/triage.py` 的
+`triage(body, sender)` 在两维分类**之前**就已固定判定,`SKILL.md` 第 4 步跳过 issue-type
+判定,只需按下方矩阵挑 response-type 分支即可。语料现存的 7 份 FFBA/variance 邮件
+(`LTL-mail-2/`)都是 Priority1 主动发出的**首次通知**(尚无我方发起 dispute 后 broker
+再次回复的样本),因此下面只有 `accepted`/`needs-info` 有真实引文,`declined` 是类推。
+
+- **`accepted`**(broker 主动提出可代为 dispute;真实引文:"Priority1 CAN dispute these
+  charges on your behalf within 2 BUSINESS DAYS of receiving this notification",
+  `LTL-mail-2/FFBA BOL# 60112079078.eml`)——致谢并请其推进 dispute、请其在结果出来后
+  回传给我方;`{dispute_basis}` 留空或仅一句致谢,不必重复复述费用。
+- **`needs-info`**(broker 索要支持文件以启动 dispute;真实引文:"please provide packing
+  slip and spec sheet to dispute",`LTL-mail-2/Priority1 Variance Update for Shipment
+  60111754054.eml`;另见 "supply a packing slip and a preprinted spec sheet/catalog page
+  that supports",`LTL-mail-2/Variance for BOL 60114679882.eml`)——`{dispute_basis}`
+  补齐 broker 索要的具体信息(参考号、发货日期,或客户可提供的 packing slip/spec sheet
+  描述)。**如实记录一个差异:** 语料中真实索取物是**支持文件**(packing slip/spec
+  sheet),而非本条最初设想的"参考号/发货日期";两者都按此分支处理,不臆造客户没提供
+  的文件内容。
+- **`declined`**(broker 坚持收费、不认可 dispute;**语料中无真实引文**——现存 FFBA/
+  variance 邮件均为首次通知,尚无我方发起 dispute 后 broker 再次拒绝的回复样本;类推自
+  `return-reason` 的 `declined` 语气)——`{dispute_basis}` 改为复述该笔费用、请求承运商
+  支持文件、并询问 dispute 途径,不当场认款、不代客户主张免责。
 
 ## 消歧提醒(呼应 issue-taxonomy 的说明)
 

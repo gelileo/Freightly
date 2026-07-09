@@ -260,3 +260,53 @@ Append-only chronological log of significant changes to this project. Each entry
 - Full suite green: `python3 -m pytest -q` → 21 passed.
 - Files: `scripts/triage_report.py`, `tests/test_triage_report.py`, `scripts/triage.py`,
   `knowledge/concepts/drafting/issue-taxonomy.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | v2 skill flow (triage: skip/billing/shipment) + freight terms (task 5)
+
+- Upgraded `.claude/skills/draft-broker-email/SKILL.md` to the v2 body-based triage flow:
+  inserted a front-door **TRIAGE** step (new step 2, after locate-case+snapshot, before the
+  issue×response classification) that calls `scripts/triage.py`'s `triage(body, sender)`:
+  `skip` → tell the user it's non-actionable and stop, never drafting/never writing
+  `cases/<BOL>/drafts/`; `billing-dispute` → issue type is fixed to
+  `templates/billing-dispute.md` by triage itself (skip the issue-type sub-step), still
+  classify broker response type per `response-taxonomy.md`, then continue through
+  fill-slots/save/stop; `shipment` → unchanged v1 two-dimension (issue×response)
+  classification and templates. Step 1 (locate case) now points at `scripts/corpus.py`'s
+  `merged_best()` (wraps `parse_eml.dedupe_snapshots`, merges across **both**
+  `LTL-mail/` + `LTL-mail-2/`) as the preferred way to pick the fullest snapshot. Renumbered
+  the remaining steps (3–8) and added two constraints: `triage == skip` mail never reaches
+  `issue-to-template-flow.md`'s matrix, and `triage.py` misclassifications get the same
+  same-task update-and-log treatment as issue/response taxonomy gaps.
+- Matured `knowledge/connections/issue-to-template-flow.md`: added a one-line v2 scope note
+  under `## Rule` (the matrix only applies to `billing-dispute`/`shipment`; `skip` mail never
+  enters it, having already terminated in `SKILL.md` step 2), and a new
+  `### billing-dispute (模板: templates/billing-dispute.md)` section with three real-quote-
+  grounded branches: `accepted` ("Priority1 CAN dispute these charges on your behalf within 2
+  BUSINESS DAYS", `LTL-mail-2/FFBA BOL# 60112079078.eml`) → thank + ask them to proceed and
+  report back; `needs-info` ("please provide packing slip and spec sheet to dispute",
+  `LTL-mail-2/Priority1 Variance Update for Shipment 60111754054.eml`; also
+  `LTL-mail-2/Variance for BOL 60114679882.eml`) → supply the requested info, honestly noting
+  the corpus asks for *supporting documents* rather than the originally-assumed
+  reference/date; `declined` (no real reply-to-our-dispute quote exists yet in the corpus —
+  all 7 FFBA/variance emails found are broker-initiated first notices — so this branch is
+  marked inferred, analogous to `return-reason`'s `declined`) → restate the charge, request
+  carrier support docs + ask the dispute path, don't concede. `status: mature` kept.
+- Matured `knowledge/concepts/freight/parties-and-roles.md`: added freight terms **FFBA**
+  (Free Freight Bill Audit — Priority1's post-shipment audit that can add a pricing variance),
+  **out-of-route charge**, **accessorial**, **reweigh/reclass**, **PO#** (receiver's purchase
+  order number needed to schedule an appointment delivery — real quote from
+  `LTL-mail-2/60112049235.eml`), and **drayage** (container short-haul — out of v2 scope,
+  `triage.py` special-cases it to `skip` even though its body literally contains "additional
+  charge(s)"), each grounded in a real `LTL-mail-2/` quote. Added new parties to the chain
+  table: **Ashton Johnson** (Priority1 Account Executive / sales, `Ashton.Johnson@priority1.com`,
+  always `triage == skip`), **`NoReply@Priority1.com`** (automated statement sender, matched by
+  `_SKIP_SENDER`), and carrier **Warp** (relays an out-of-route charge and a TONU fee via
+  broker Will Jerry). Added a new "v2 additions (`LTL-mail-2/`, 2026-07-09)" section rather
+  than editing the pre-existing "Confirmed across the corpus" section, since that section is
+  explicitly scoped to the 71-file `LTL-mail/` verification and stating "one carrier named so
+  far: AAA Cooper" is still accurate for that scope. `status: mature` kept on both articles.
+- Doc-only task, no code/tests changed. Full suite green: `python3 -m pytest -q` → 21 passed
+  (unchanged from before this task).
+- Files: `.claude/skills/draft-broker-email/SKILL.md`,
+  `knowledge/connections/issue-to-template-flow.md`,
+  `knowledge/concepts/freight/parties-and-roles.md`, `knowledge/log.md`.
