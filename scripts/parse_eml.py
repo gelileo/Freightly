@@ -9,6 +9,7 @@ from email import policy
 from email.message import Message
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 
 def decode_body(msg: Message) -> str:
@@ -81,3 +82,44 @@ def split_turns(text: str) -> list[Turn]:
         body_start = line_end + 1 if line_end != -1 else end
         turns.append(Turn(marker=marker, body=text[body_start:end].strip()))
     return turns
+
+
+@dataclass
+class ParsedEmail:
+    path: str
+    subject: str
+    sender: str
+    date: str
+    body: str
+    bol: list[str]
+    pro: list[str]
+    turns: list[Turn]
+
+
+def parse_eml(path: "str | Path") -> ParsedEmail:
+    path = Path(path)
+    with open(path, "rb") as f:
+        msg = email.message_from_binary_file(f, policy=policy.default)
+    body = decode_body(msg)
+    ids = extract_ids(body + " " + (msg.get("subject") or ""))
+    return ParsedEmail(
+        path=str(path),
+        subject=(msg.get("subject") or "").strip(),
+        sender=(msg.get("from") or "").strip(),
+        date=(msg.get("date") or "").strip(),
+        body=body,
+        bol=ids["bol"],
+        pro=ids["pro"],
+        turns=split_turns(body),
+    )
+
+
+def dedupe_snapshots(paths: list[Path]) -> dict[str, Path]:
+    """Group by BOL (from filename), keep the largest (most complete) snapshot per BOL."""
+    best: dict[str, Path] = {}
+    for p in paths:
+        for bol in re.findall(r"\b60\d{9}\b", p.name):
+            cur = best.get(bol)
+            if cur is None or p.stat().st_size > cur.stat().st_size:
+                best[bol] = p
+    return best

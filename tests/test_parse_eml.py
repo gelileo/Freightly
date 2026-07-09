@@ -58,3 +58,27 @@ def test_split_turns_outlook_style():
     assert turns[0].body.strip() == "Latest reply body."
     assert turns[1].marker.startswith("From:")
     assert "Older quoted body." in turns[1].body
+
+
+def test_parse_eml_aggregates(sample_pickup):
+    from pathlib import Path
+    from scripts.parse_eml import parse_eml
+
+    p = parse_eml(sample_pickup)
+    assert p.subject == "Re: pickup --- 60114338678"
+    assert "ltlwest@priority1.com" in p.sender
+    assert p.bol == ["60114338678"]
+    assert len(p.turns) == 2
+
+
+def test_dedupe_snapshots_keeps_largest(corpus_dir):
+    from pathlib import Path
+    from scripts.parse_eml import dedupe_snapshots
+
+    # BOL 60114662390 has 9 Front-style snapshots of one growing thread.
+    group = sorted(corpus_dir.glob("*60114662390*.eml"))
+    assert len(group) >= 9
+    best = dedupe_snapshots(group)
+    assert "60114662390" in best
+    largest = max(group, key=lambda p: p.stat().st_size)
+    assert best["60114662390"] == largest
