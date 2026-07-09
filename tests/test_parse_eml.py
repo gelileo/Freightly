@@ -82,3 +82,20 @@ def test_dedupe_snapshots_keeps_largest(corpus_dir):
     assert "60114662390" in best
     largest = max(group, key=lambda p: p.stat().st_size)
     assert best["60114662390"] == largest
+
+
+from scripts.parse_eml import render_thread_md, write_case, parse_eml
+
+
+def test_render_thread_md_lists_turns(sample_pickup):
+    md = render_thread_md(parse_eml(sample_pickup))
+    assert "# Case 60114338678" in md
+    assert "Re: pickup --- 60114338678" in md
+    assert md.count("## Turn") == 2
+
+
+def test_write_case_creates_thread_file(tmp_path, sample_pickup):
+    out = write_case(parse_eml(sample_pickup), tmp_path)
+    assert out == tmp_path / "60114338678" / "thread.md"
+    assert out.exists()
+    assert "60114338678" in out.read_text()
