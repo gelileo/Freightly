@@ -186,3 +186,33 @@ Append-only chronological log of significant changes to this project. Each entry
 - Recorded as "Planned v2" in `platform-architecture.md`; next step is a v2 implementation
   plan (writing-plans) then subagent execution. v1 remains as-built until then.
 - Files: `knowledge/concepts/drafting/platform-architecture.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | billing-dispute category + template + taxonomy update (v2 task 3)
+
+- TDD: wrote `tests/test_billing_template.py` (asserts `templates/billing-dispute.md`
+  exists with all four sections and the `{charge_ref}`/`{BOL}` slots); confirmed it FAILed
+  (no template file), then added `templates/billing-dispute.md` and confirmed it PASSes.
+- New template covers FFBA pricing-variance / out-of-route / reweigh-reclass / accessorial
+  disputes with a "review-before-invoicing" skeleton (slots `{broker_contact}`/`{charge_ref}`/
+  `{BOL}`/`{pro_clause}`/`{dispute_basis}`/`{shipper_signoff}`); never commits to a fabricated
+  amount or fault. Examples grounded in real `LTL-mail-2/` quotes: `FFBA BOL# 60112079078.eml`
+  ("Free Freight Bill Audit … pricing variance … Priority1 CAN dispute") and
+  `BOL 60114409180 _ P-118701-2621.eml` (William Jerry relaying Warp's "out of route charge …
+  145b Talmadge Rd, Edison, NJ").
+- Matured `concepts/drafting/issue-taxonomy.md`: added the `billing-dispute` row (10th
+  category; count `—` since it's sourced from `LTL-mail-2/` body-matching, not the 71-file
+  `LTL-mail/` subject-based main table) and a new "`triage` 前置维度" section that makes this
+  doc the governing reference for `scripts/triage.py`'s three-way front door (`skip` /
+  `billing-dispute` / `shipment`) — `skip` is non-actionable and never drafted;
+  `billing-dispute` and `shipment` are both draftable. Added a footnote in 说明与消歧
+  documenting why `billing-dispute` sits outside the `LTL-mail/`-derived count.
+- Updated `concepts/drafting/response-taxonomy.md`: billing-side broker replies reuse the
+  existing 6 response slugs (commonly `needs-info` for supporting docs, `declined` to hold
+  the charge, `accepted` to dispute on our behalf) — no new slug added unless the corpus
+  later shows a gap.
+- Both articles kept `status: mature`, `updated: 2026-07-09`.
+- Full suite green: `python3 -m pytest -q` → 20 passed (includes the new billing template
+  test and the pre-existing `tests/test_triage.py`).
+- Files: `templates/billing-dispute.md`, `tests/test_billing_template.py`,
+  `knowledge/concepts/drafting/issue-taxonomy.md`,
+  `knowledge/concepts/drafting/response-taxonomy.md`, `knowledge/log.md`.

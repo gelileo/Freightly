@@ -15,7 +15,7 @@ references:
 
 分类依据是主题行(subject)。计数为对全部 71 个 `LTL-mail/*.eml` 跑 `corpus_report()` 得到的 **BOL 出现数(含同一线程的多份快照,故会高于唯一 BOL 数)**;全部文件均可归类,`unknown = []`。
 
-## 类别(9 类,按出现频次排序)
+## 类别(10 类,按出现频次排序;`billing-dispute` 为 v2 新增,见下方说明)
 
 | Slug | 客户诉求(中文定义) | 计数 | 真实示例文件 |
 | --- | --- | --- | --- |
@@ -29,6 +29,17 @@ references:
 | `damage` | 货物损坏(如木箱底部破损)并请求紧急/尽早送达。 | 2 | `Re_ Urgent Delivery Request – Crate Damaged _ 60114821897.eml`、`Re_ 回复： Urgent Delivery Request – Crate Damaged _ 60114821897.eml` |
 | `delivery-access` | 因**尺寸/设备/道路**原因无法按常规送达(货太大装不上 liftgate、bobtail 进不去、道路太窄),需协调替代车型或改 terminal 自提。**主题行无固定关键词,常出现在 broker 转述承运商的正文里**;`classify_issue` 靠主题匹配不到,需人工判定。 | 0(语料主题中无独立样本;见下方说明) | broker 来信正文,如 "these dimensions will not fit on a liftgate … will not fit on our bobtail … receiver can come pick this up at the terminal"(BOL 60114821897) |
 | `return-reason` | 询问退运原因,并索要 POD / 司机备注(常牵涉是否应付费用)。 | 1 | `Re_ Request for Return Reason --- 60113820374.eml` |
+| `billing-dispute` | 经纪人/承运商提出的**额外收费或计费差异**(FFBA Free Freight Bill Audit 的 pricing variance、out-of-route 费用、reweigh/reclass、accessorial 等),需先审再认、不当场认款。**来自 `LTL-mail-2/` 语料,非 71 篇 `LTL-mail/` 主表计数范围**。 | — | `LTL-mail-2/FFBA BOL# 60112079078.eml`(broker:"processed through Priority1's Free Freight Bill Audit and have accrued a pricing variance … additional charge(s) … Priority1 CAN dispute")、`LTL-mail-2/BOL 60114409180 _ P-118701-2621.eml`(broker William Jerry 转 Warp:"out of route charge … driver was redirected … 145b Talmadge Rd, Edison, NJ") |
+
+## v2:`triage` 前置维度(governs `scripts/triage.py`)
+
+v2 引入了 `triage` 作为**分类前的前置维度**,先于本表所有 issue slug 生效,决定一封来信是否值得起草。三个结果:
+
+- `skip` —— 非可执行(broker 的营销推广、月结 statement、drayage/集装箱到港通知、out-of-office/日历邀请等)。**不起草**,不进入下面任何 issue 类别。
+- `billing-dispute` —— 见上表新行;**可起草**,专用模板 `templates/billing-dispute.md`。
+- `shipment` —— 其余所有货运类诉求(即本表 `pickup`/`shipment-status`/`pro-lookup`/`pod-request`/`cancellation`/`reconsignment`/`delivery-window`/`damage`/`delivery-access`/`return-reason` 九类的总闸门);**可起草**,再按主题/正文细分到具体 issue slug。
+
+本文是 `triage` 维度的**治理文档(governing doc)**:`scripts/triage.py` 的判定规则(`_SKIP_SENDER`/`_SKIP_BODY`/`_BILLING` 三个正则)必须与此说明保持同步,新增或调整判定关键词时按 same-task 规则一并更新本节。`triage` 与本表下方的 issue 分类是**两个独立维度**——`triage` 决定"是否/去哪起草",issue 分类决定"用哪个模板骨架"。
 
 ## 说明与消歧
 
@@ -42,3 +53,10 @@ references:
   (非主动约提货)的骨架都会**误述**该情形,故按 same-task 规则重新引入本类别并新增
   `templates/delivery-access.md`。因语料主题中仍无对应样本,`corpus_report()` 的 `by_issue`
   不会出现该 slug(计数 0),这属正常——它源于**正文/live 消息**而非主题。
+- **关于 `billing-dispute`(v2 新增,2026-07-09):** 与上面 9 类不同,`billing-dispute` 不来自
+  71 篇 `LTL-mail/` 主表(该表的计数与 `unknown = []` 断言均只覆盖 `LTL-mail/`),而来自 v2 新引入的
+  `LTL-mail-2/`(Justnano 全量 broker 收件箱)语料;判定也不走 `classify_issue`/`corpus_report`
+  的主题匹配,而由 `scripts/triage.py` 的 `_BILLING` 正则对**正文**匹配(FFBA/pricing variance/
+  additional charge/out of route/accessorial/reweigh/reclass 等关键词)。因此表中"计数"列填 `—`,
+  `tests/test_taxonomy.py`(仅跑 `LTL-mail/`)不覆盖它;其正确性由 `tests/test_triage.py` 与
+  `tests/test_billing_template.py` 验证。

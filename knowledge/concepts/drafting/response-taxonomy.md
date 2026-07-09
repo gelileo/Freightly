@@ -31,3 +31,4 @@ references:
 - 一封 broker 邮件可能混合信号(如 `needs-info` + `offered-alternative`)。判定优先级:先看是否**已完成**(`confirmed-completed`)→ 是否**拒绝**(`declined`)→ 是否**索要信息**(`needs-info`)→ 是否**给方案**(`offered-alternative`)→ 否则 `accepted`(在办)。
 - 超尺寸/货损线程(BOL 60114821897)是典型多轮案例:`declined`(常规/小车送不了)→ `offered-alternative`(平板/箱车或 terminal 自提)→ 客户接受自提后转为 `pickup`。
 - `quoted-cost-eta` 的 ETA 子类在当前 71 文件中样本稀少;若后续线程出现明确到达日期,按 same-task 规则补一条真实引文。
+- **v2(2026-07-09):** 账单侧(`issue-taxonomy.md` 的 `billing-dispute`)broker 回复复用现有 6 类,不新增 slug——常见 `needs-info`(索要承运商支持文件/发票等)、`declined`(坚持收费)、`accepted`(同意代为 dispute);暂不新增,除非后续语料出现这 6 类覆盖不了的情形,再按 same-task 规则补充。
