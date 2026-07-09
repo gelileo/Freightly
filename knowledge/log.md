@@ -125,3 +125,20 @@ Append-only chronological log of significant changes to this project. Each entry
   ("Working on this") is a real broker quote.
 - Flagged `quoted-cost-eta` as a known matrix gap.
 - Files touched: `knowledge/connections/issue-to-template-flow.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | end-to-end validation + anti-drift maturation
+
+- End-to-end validated `/draft-broker-email` on BOL 60114821897 (damage / broker `accepted`):
+  produced `cases/60114821897/drafts/1.md` with all slots traced to real thread/WeChat data,
+  no `[[MISSING]]`, unsent. (`cases/` is gitignored — draft is local demo output.)
+- Anti-drift maturation: matured `concepts/drafting/platform-architecture.md` and
+  `concepts/freight/parties-and-roles.md` (`thin` → `mature`). Corrected drift in
+  platform-architecture: CLI writes primary `bol[0]` only (no multi-BOL fan-out, no auto
+  snapshot-collapse — documented as known limitations); draft filename is `<n>` not
+  `<timestamp>`; folder is now a git repo. parties-and-roles: recorded the real LTL West
+  analysts (Guerrero, Posada, Moore, Dela Cruz, Turner), Front tooling, and the shared
+  `ltlwest@priority1.com` mailbox.
+- Corrected stale `CLAUDE.md` note (folder is now a git repo).
+- All knowledge articles now `status: mature`. Full suite: 13 passed.
+- Files touched: `knowledge/concepts/drafting/platform-architecture.md`,
+  `knowledge/concepts/freight/parties-and-roles.md`, `CLAUDE.md`, `knowledge/log.md`.

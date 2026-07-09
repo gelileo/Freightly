@@ -3,7 +3,7 @@ title: Platform Architecture
 type: concept
 area: drafting
 updated: 2026-07-09
-status: thin
+status: mature
 affects:
   - scripts/**
   - templates/**
@@ -62,9 +62,15 @@ broker → carrier chain.
 
 ## Case model
 
-- **Case key = BOL number.** A subject naming several BOLs (`60114838856, 60114838936`)
-  belongs to multiple cases; the latest / most complete snapshot is authoritative.
-- The parser collapses snapshots per BOL and keeps the fullest thread.
+- **Case key = BOL number.**
+- **As built (current behavior):** the CLI parses **one `.eml` at a time** and writes to the
+  **primary BOL only** (`parsed.bol[0]`) at `cases/<BOL>/thread.md`, overwriting on re-run.
+- **Known limitations (not yet wired into the CLI):**
+  - A subject naming several BOLs (`60114838856, 60114838936`) does **not** fan out into
+    multiple case folders — only the first BOL gets a folder.
+  - `dedupe_snapshots()` exists as a library function (picks the largest snapshot per BOL)
+    but the CLI does not call it to auto-select the fullest of the `(1)(2)(3)` snapshots;
+    the caller chooses which file to parse. See [eml-parsing](eml-parsing.md).
 
 ## Data flow (the drafting flow)
 
@@ -80,7 +86,7 @@ live WeChat msg (Chinese, pasted) ─────────┤
                                             ▼
                  generate English draft (translate Chinese), anchored on template
                                             ▼
-                     write cases/<BOL>/drafts/<timestamp>.md  ──▶  STOP for human review
+                     write cases/<BOL>/drafts/<n>.md  ──▶  STOP for human review
 ```
 
 See [issue-to-template-flow](../connections/issue-to-template-flow.md) for the
@@ -97,7 +103,9 @@ classification-to-draft detail.
 - Unparseable or encrypted `.eml` → skip with a logged reason; never fabricate a thread.
 - Issue or response that fits no existing category → the same-task rule requires adding it
   to the taxonomy article before drafting (capture first).
-- Multi-BOL threads → one case per BOL; the draft references all relevant BOLs.
+- Multi-BOL threads → intended as one case per BOL; **currently only the primary BOL gets a
+  case folder** (see Case model → Known limitations). The draft should still reference all
+  relevant BOLs in its body.
 
 ## Testing strategy
 
@@ -110,4 +118,6 @@ classification-to-draft detail.
 
 - Sending email / mailbox integration.
 - Auto-ingesting WeChat (messages are pasted at draft time).
-- Git hooks and CI drift-check (folder is not a git repo).
+- Git hooks and CI drift-check. (The folder is now a git repo — initialized during
+  implementation — so these *could* be added later, but living-doc's hook/Action layer was
+  intentionally not installed.)
