@@ -27,6 +27,7 @@ references:
 | `reconsignment` | 改配/重新配送到新地址(主题仅为裸 BOL 号、无关键词;正文要求 reconsign)。**本类别由全语料扫描新发现**,种子表原先没有。 | 4 | `Re_ 60113972680.eml`(及其 `(1)(2)(3)` 快照) |
 | `delivery-window` | 预约、指定或更改送达时间窗(如"6 号中午前直送、无需预约")。 | 4 | `Re_ Delivery window --- 60114839031.eml`(及其 `(1)(2)(3)` 快照) |
 | `damage` | 货物损坏(如木箱底部破损)并请求紧急/尽早送达。 | 2 | `Re_ Urgent Delivery Request – Crate Damaged _ 60114821897.eml`、`Re_ 回复： Urgent Delivery Request – Crate Damaged _ 60114821897.eml` |
+| `delivery-access` | 因**尺寸/设备/道路**原因无法按常规送达(货太大装不上 liftgate、bobtail 进不去、道路太窄),需协调替代车型或改 terminal 自提。**主题行无固定关键词,常出现在 broker 转述承运商的正文里**;`classify_issue` 靠主题匹配不到,需人工判定。 | 0(语料主题中无独立样本;见下方说明) | broker 来信正文,如 "these dimensions will not fit on a liftgate … will not fit on our bobtail … receiver can come pick this up at the terminal"(BOL 60114821897) |
 | `return-reason` | 询问退运原因,并索要 POD / 司机备注(常牵涉是否应付费用)。 | 1 | `Re_ Request for Return Reason --- 60113820374.eml` |
 
 ## 说明与消歧
@@ -34,4 +35,10 @@ references:
 - `reconsignment` 的真实印证(读 `cases/60113972680/thread.md`):客户来电要求把这票 reconsign 到新地址 `122 Timberline Dr, Unit 100, Spring Hill, TN 37174`,经纪人回问是否仍需预约、是否有更新的联系人。
 - `delivery-window` 与 `reconsignment` 的区别:前者改的是**时间**(预约/时间窗),后者改的是**收货地址**。
 - `Statue` 是语料中 `Status` 的拼写错误,`RULES` 已一并匹配到 `shipment-status`。
-- 常见并发关系:`delivery-access`/`damage` 在客户同意后常转为 `pickup`(改到 terminal 自提)。种子表曾列出 `delivery-access`,但当前 71 个文件的主题未单独出现该关键词,已并入 `damage`/`pickup` 场景;若后续出现独立的通行受限主题,按 same-task 规则新增。
+- 常见并发关系:`delivery-access`/`damage` 在客户同意后常转为 `pickup`(改到 terminal 自提)。
+- **关于 `delivery-access`(同一任务内新增,2026-07-09):** 该类别在建库时曾因"71 个语料文件的
+  主题未单独出现"而并入 `damage`/`pickup`。后收到一封独立的 broker 来信(BOL 60114821897:货物
+  尺寸装不上 liftgate、bobtail 进不去,承运商建议改 terminal 自提),`damage`(无货损)与 `pickup`
+  (非主动约提货)的骨架都会**误述**该情形,故按 same-task 规则重新引入本类别并新增
+  `templates/delivery-access.md`。因语料主题中仍无对应样本,`corpus_report()` 的 `by_issue`
+  不会出现该 slug(计数 0),这属正常——它源于**正文/live 消息**而非主题。

@@ -157,3 +157,19 @@ Append-only chronological log of significant changes to this project. Each entry
   loss), bol[0] DRY/UNKNOWN-branch, quoted-cost-eta matrix gap, mid-module import placement.
 - Files touched: `knowledge/concepts/drafting/eml-parsing.md`,
   `.claude/skills/draft-broker-email/SKILL.md`, `knowledge/log.md`.
+
+## [2026-07-09] taxonomy | re-add delivery-access (same-task rule, live broker msg)
+
+- A live broker message (BOL 60114821897: crate dimensions won't fit liftgate/bobtail →
+  free terminal pickup) classified as `uncategorized`; `damage` (no damage) and `pickup`
+  (not a pickup request) both misfit. Per the same-task rule (and issue-taxonomy's own note),
+  re-added the `delivery-access` issue category.
+- Added `templates/delivery-access.md`, a `delivery-access` section in
+  `connections/issue-to-template-flow.md`, slots in `template-system.md`, a body-keyword
+  RULE in `scripts/corpus_report.py` (liftgate/bobtail/…, chosen NOT to collide with any of
+  the 71 corpus subjects — verified: `unknown==[]`, counts unchanged, no `delivery-access`
+  key emitted). Category is body/live-message driven, so `corpus_report()` count is 0.
+- 13 tests still pass.
+- Files: `knowledge/concepts/drafting/issue-taxonomy.md`, `templates/delivery-access.md`,
+  `knowledge/connections/issue-to-template-flow.md`,
+  `knowledge/concepts/drafting/template-system.md`, `scripts/corpus_report.py`, `knowledge/log.md`.

@@ -14,11 +14,14 @@ references:
 
 One template per [issue type](issue-taxonomy.md), living in `templates/<issue-type>.md`.
 This is deliverable **A** (the editable skeleton) and the anchor for deliverable **B**
-(the LLM-generated draft). All 9 slugs from `issue-taxonomy.md` — `pickup`,
-`shipment-status`, `pro-lookup`, `pod-request`, `cancellation`, `reconsignment`,
-`delivery-window`, `damage`, `return-reason` — have a template file; `tests/test_templates.py`
-asserts this stays true against `scripts/corpus_report.py`'s live slug set (no
-`delivery-access.md`: that category folded into `damage`/`pickup`, see issue-taxonomy.md).
+(the LLM-generated draft). The 9 **subject-classifiable** slugs from `issue-taxonomy.md` —
+`pickup`, `shipment-status`, `pro-lookup`, `pod-request`, `cancellation`, `reconsignment`,
+`delivery-window`, `damage`, `return-reason` — each have a template file, and
+`tests/test_templates.py` asserts this stays true against `scripts/corpus_report.py`'s live
+slug set. **`delivery-access.md` also exists (10 templates total)** but is driven by broker
+**message bodies** (dimensions won't fit liftgate/bobtail → terminal pickup), not by any
+subject in the 71-file corpus — so `corpus_report()` never emits it and the corpus-based test
+does not require it. It was re-added under the same-task rule (see issue-taxonomy.md).
 
 ## Each template file contains (four sections, always in this order)
 
@@ -62,6 +65,9 @@ Issue-specific slots (sourced from the thread or the WeChat message, never inven
 - `damage`: `{damage_desc}`, `{customer_request}` (used for the follow-up ask, e.g. a
   specific delivery date or alternate-truck request).
 - `return-reason`: `{return_reason}` (optional context/dispute sentence).
+- `delivery-access`: `{access_constraint}` (why regular delivery fails), `{proposed_resolution}`
+  (the next-step ask — alternate truck / earliest date / cost, and/or terminal-pickup
+  confirmation; the customer's final choice stays `[[MISSING]]` until confirmed).
 
 Any required slot missing from the thread renders as `[[MISSING: …]]` in the draft rather
 than being guessed — the reviewer fills it in before sending.

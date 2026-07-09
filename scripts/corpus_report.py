@@ -12,6 +12,10 @@ import re
 RULES: list[tuple[str, str]] = [
     (r"return reason", "return-reason"),
     (r"crate damaged|damage", "damage"),
+    # delivery-access: equipment/size/road access failure. Keywords chosen NOT to collide
+    # with any subject in the 71-file corpus (which never says liftgate/bobtail/etc.); this
+    # category is normally body-driven, so classify_issue rarely fires it — see issue-taxonomy.md.
+    (r"liftgate|bobtail|won'?t fit|will not fit|too big|too narrow|oversiz", "delivery-access"),
     (r"delivery window", "delivery-window"),
     (r"shipment status|statue", "shipment-status"),  # 'Statue' is a corpus typo for Status
     (r"\bpod\b", "pod-request"),

@@ -172,6 +172,23 @@ broker 的既成表态。
 - **`accepted`**(推断,语料中无专属引文)——若 broker 表示会去核实退运原因,默认分支即可,
   `{return_reason}` 留空或仅一句背景。
 
+### `delivery-access`(模板:`templates/delivery-access.md`)—— 同一任务内新增(2026-07-09)
+
+因尺寸/设备/道路无法常规送达。与 `damage` 的区别:**无货损**,纯粹是装不上/进不去。此类
+**通常由 broker 转述承运商而发起**,broker response 多为 `declined` + `offered-alternative`
+的组合。
+
+- **`declined` + `offered-alternative`**(真实来信,BOL 60114821897:"these dimensions will
+  not fit on a liftgate … will not fit on our bobtail … receiver can come pick this up at the
+  terminal for no cost")——`{access_constraint}` 照实转述为何送不了;`{proposed_resolution}`
+  同时做两件事:(a) 请 broker 向承运商确认是否可用替代车型(平板/箱式/更小的车)及最早送达
+  日期与是否有额外费用;(b) 确认 terminal 自提方案(附 terminal 地址,若已知)。**客户尚未拍板
+  选哪个时,以 `[[MISSING: 客户决定]]` 标出,不代客户决定。**
+- **客户接受 terminal 自提后 → 转 `pickup`**——issue 类型切换,后续用 `templates/pickup.md`
+  (自提地址填 terminal 地址),不再用 delivery-access 措辞。
+- **`accepted`**(推断)——若 broker 表示会去协调替代车型,默认分支即可,`{proposed_resolution}`
+  聚焦"请确认可行车型与最早日期"。
+
 ## 消歧提醒(呼应 issue-taxonomy 的说明)
 
 - `delivery-window` 改的是**时间**,`reconsignment` 改的是**地址**——即便 broker
