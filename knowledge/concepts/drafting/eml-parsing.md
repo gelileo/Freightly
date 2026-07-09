@@ -3,7 +3,7 @@ title: EML Parsing
 type: concept
 area: drafting
 updated: 2026-07-09
-status: thin
+status: mature
 affects:
   - scripts/parse_eml.py
 load_bearing: true
@@ -48,5 +48,4 @@ Deterministic decoding of raw `.eml` into a clean, chronological thread. Kept as
 
 ## To do (implementation)
 
-- Decide output shape for `cases/<BOL>/thread.md`.
-- Write fixtures + unit tests (known BOL, turn count, parties).
+- Output shape: `cases/<BOL>/thread.md` via `render_thread_md`; fixtures in `tests/`.
