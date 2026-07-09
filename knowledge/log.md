@@ -82,3 +82,36 @@ Append-only chronological log of significant changes to this project. Each entry
   `templates/reconsignment.md`, `templates/delivery-window.md`, `templates/damage.md`,
   `templates/return-reason.md`, `tests/test_templates.py`,
   `knowledge/concepts/drafting/template-system.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | draft-broker-email skill + matured issue-to-template-flow
+
+- Added `.claude/skills/draft-broker-email/SKILL.md`: the orchestrating skill. Flow —
+  locate/parse case → `cases/<BOL>/thread.md`; ask user to paste the customer's WeChat
+  Chinese message; classify issue type (`scripts/corpus_report.py`'s `classify_issue`, or
+  `issue-taxonomy.md`) and broker response type (`response-taxonomy.md`'s priority order:
+  `confirmed-completed` → `declined` → `needs-info` → `offered-alternative` → else
+  `accepted`); if either has no matching category, update the taxonomy article first
+  (same-task); select `templates/<issue-type>.md` and its response-branch per
+  `issue-to-template-flow.md`; fill slots deterministically, translate the Chinese into
+  `{customer_request}` (and issue-specific request slots), never invent facts — missing
+  required slot → `[[MISSING: …]]`; write `cases/<BOL>/drafts/<incrementing n>.md`
+  containing classification + chosen template + final English draft; stop and show the
+  draft path/body, stating it is unsent and awaiting review. Never auto-sends.
+- Matured `knowledge/connections/issue-to-template-flow.md`: replaced the "To do
+  (implementation)" section with the final issue×response → template-branch matrix,
+  covering `pickup`, `shipment-status`, `pod-request`, `delivery-window`, `cancellation`,
+  `damage`, `reconsignment` across `needs-info`/`declined`/`accepted`/
+  `offered-alternative`, each grounded in a real quote where the corpus has one and
+  honestly marked "推断默认" (inferred default) where it doesn't. Default for an ambiguous
+  broker response stays `needs-info` framing (ask/clarify, don't over-commit), matching
+  `response-taxonomy.md`'s existing guidance. Also fixed a stale reference: the old
+  "Two entry points" section cited the deleted `hs.eml` and the retired `delivery-access`
+  slug — replaced with the real `damage` example (`cases/60114821897`, `declined` →
+  `offered-alternative` → converts to `pickup`), and added an explicit disambiguation note
+  that `delivery-access`/`templates/delivery-access.md` do not exist. `status: thin` →
+  `mature`.
+- Verified: all 9 template slugs from `templates/*.md` match `corpus_report("LTL-mail")`'s
+  live slug set (`unknown == []`); full test suite (`python3 -m pytest tests/`, 13 tests)
+  still green — no code changed, doc-only task.
+- Files touched: `.claude/skills/draft-broker-email/SKILL.md`,
+  `knowledge/connections/issue-to-template-flow.md`, `knowledge/log.md`.
