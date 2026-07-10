@@ -424,3 +424,82 @@ actually used, and closed it as **won't-fix**. Reasoning:
   the guardrail already provides. The documented caveats in `eml-parsing.md` /
   `platform-architecture.md` and the SKILL.md guardrail remain (they are accurate and useful);
   only the code redesign is closed.
+
+## [2026-07-10] compile | engine/ build (tasks 1-6) + drafting-engine knowledge article (EN+ZH)
+
+- Built the headless `engine/` package described in
+  `docs/superpowers/specs/2026-07-10-broker-app-system-design.md` §8/§12 (Phase 0/1
+  slice), across six tasks, reusing `scripts/` unchanged throughout:
+  1. **`engine/llm.py`** — `LlmDraft` dataclass, `LlmClient` Protocol, `FakeLlmClient`
+     (deterministic `{slot}` substitution stub).
+  2. **`engine/drafting.py`** — `DraftRequest`/`DraftResult` + `draft()` orchestrator:
+     triage (`scripts/triage.py`) → classify (`scripts/corpus_report.py`, `shipment`
+     only; `billing-dispute` fixes template by triage itself; `skip` short-circuits) →
+     `load_template` → LLM fill → validate.
+  3. **`engine/validate.py`** — anti-fabrication `validate_draft`/`FACTUAL_SLOTS`
+     (`BOL, PRO, pro, pickup_address, new_address, contact_phone, delivery_date,
+     charge_ref`); untraceable factual values are redacted to `[[MISSING: key]]`; a
+     follow-up fix added `Validated.warnings` so an untraceable value that can't even
+     be found verbatim in the draft body (redact is a no-op) produces a warning instead
+     of a silent pass.
+  4. **`tests/test_corpus_regression.py`** — locks the real, measured triage
+     distribution over the merged 922-file corpus: `{skip: 327, billing-dispute: 60,
+     shipment: 535}`, `unknown_shipment: 203`; plus a three-case end-to-end replay
+     through `draft()` (billing-dispute / skip / shipment).
+  5. **`engine/llm.py`: `GeminiLlmClient`** — real adapter (`gemini-2.5-flash`,
+     `google-genai`), structured-JSON prompt repeating the anti-fabrication
+     instruction; guarded by `tests/test_gemini_client.py`
+     (`skipif no GEMINI_API_KEY` — the one skipped test in the suite).
+  6. **This task** — added `knowledge/concepts/drafting/drafting-engine.md` (EN) and
+     `drafting-engine.zh.md` (ZH), per the dual-language rule for design/plan/knowledge
+     docs. Content: the `engine/` package (port + Fake/Gemini clients), the six-stage
+     `draft()` pipeline, the `FACTUAL_SLOTS` anti-fabrication rule and the `warnings`
+     fail-loud mechanism (documented explicitly as "untraceable factual value that
+     can't be redacted → warning, never silent success"), that it reuses `scripts/`
+     unchanged, the locked corpus-regression distribution, and that this is the first
+     built slice of `docs/superpowers/specs/2026-07-10-broker-app-system-design.md`.
+     Also honestly documented one open gap found while writing the article:
+     `DraftResult` does not yet expose `Validated.warnings` to callers of `draft()` —
+     no test currently asserts it — flagged as a follow-up before the engine is wired
+     into the app-spec backend (a warning must reach the agent console, not just a log
+     line).
+- Frontmatter for both new articles validated against
+  `schemas/article-frontmatter.schema.json` (required fields present; `type: concept`;
+  `status: mature`; `updated: 2026-07-10`; no keys outside the schema's allowed set) via
+  a scratch validator script (no `jsonschema`/`pyyaml` installed in this environment).
+- Updated `knowledge/index.md`: added both articles to the "Drafting system" table, and
+  added `engine/llm.py` / `engine/validate.py` / `engine/knowledge.py` /
+  `engine/drafting.py` to the "Code modules" table, each pointing at
+  `drafting-engine.md`.
+- Full suite green: `python3 -m pytest -q` → 32 passed, 1 skipped (Gemini, no API key
+  in this environment) — unchanged by this doc-only task.
+- Files touched: `knowledge/concepts/drafting/drafting-engine.md`,
+  `knowledge/concepts/drafting/drafting-engine.zh.md`, `knowledge/index.md`,
+  `knowledge/log.md`.
+
+## [2026-07-10] compile | DraftResult surfaces Validated.warnings
+
+- Closed the known gap: `engine/drafting.py`'s `DraftResult` gained a `warnings:
+  list[str] = []` field, and `draft()` now passes `warnings=v.warnings` through, so the
+  anti-fabrication fail-loud signal reaches callers instead of being dropped. Added
+  `test_draft_surfaces_validator_warnings` (`tests/test_engine_drafting.py`) using a
+  stub LLM that reformats a factual value to simulate real-LLM drift, proving the
+  `warnings` path (not just `rejected`) propagates. Updated both
+  `drafting-engine.md`/`drafting-engine.zh.md` known-gap notes accordingly. Full suite:
+  `python3 -m pytest -q` → 33 passed, 1 skipped.
+
+## [2026-07-10] review | drafting-engine final whole-branch review
+
+- Final review (opus): no Critical; mergeable as-is for the headless slice (no auto-send,
+  human-approval gate downstream, scripts/ provably unchanged, 33 tests + 1 skipped, real
+  regression values locked).
+- One Important (documented, deferred to before the live Gemini path): validate_draft is
+  filled_slots-scoped — a fact the LLM writes into prose without reporting it bypasses the
+  gate. Corrected both drafting-engine articles to stop overstating the invariant as fully
+  "mechanical" and to record the follow-ups.
+- Follow-ups BEFORE GeminiLlmClient is wired into a real drafting path: (1) prose scan for
+  BOL/PRO shapes in body absent from source_text → warning; (2) token-boundary matching
+  (substring false-positive: a fabricated value that is a substring of a real one is currently
+  accepted); (3) GeminiLlmClient JSON-decode/empty-response hardening; (4) FakeLlmClient
+  empty-string/dup-missing polish; (5) load_template missing-file + skeleton-last-section guard.
+- Files: `knowledge/concepts/drafting/drafting-engine.md` + `.zh.md`, `knowledge/log.md`.
