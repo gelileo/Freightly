@@ -120,8 +120,9 @@ verbatim substring of the draft body (simulating real-LLM formatting drift), for
 ## Anti-fabrication: `FACTUAL_SLOTS` and the `warnings` fail-loud mechanism
 
 The single most important invariant this engine enforces (carried from the human-review
-convention in `platform-architecture.md`, now made mechanical): **the LLM is never
-trusted to state a fact that isn't verifiably present in the source text.**
+convention in `platform-architecture.md`, now **partially** mechanical — see the known
+limitation below): **the LLM is not trusted to state a fact that isn't verifiably present
+in the source text.**
 
 `engine/validate.py` defines:
 
@@ -156,7 +157,18 @@ of silently succeeding. The rule, stated generally: **an untraceable factual val
 cannot be redacted must produce a warning, never a silent success.**
 
 `Validated` fields: `body: str, missing: list[str] = [], rejected: list[str] = [],
-warnings: list[str] = []`.
+warnings: list[str] = []`. `draft()` surfaces `warnings` on `DraftResult.warnings` so the
+signal reaches callers/the approval UX.
+
+**Known limitation (filled_slots-scoped) — close before the live Gemini path.** The check
+walks `raw.filled_slots` only; it does not scan the body prose for factual tokens the LLM
+wrote *without* reporting them in `filled_slots`. With `FakeLlmClient` this can't happen
+(it always reports accurately), and every draft is behind the mandatory human-approval gate,
+so there is no live exposure in this headless slice. Before `GeminiLlmClient` is wired into
+a real drafting path, add a **prose scan** (e.g. `\b60\d{9}\b` BOL / PRO shapes in `body`
+not present in `source_text` → warning), switch the substring/replace to **token-boundary**
+matching (a fabricated value that is a substring of a real one is currently accepted), and
+harden `GeminiLlmClient` JSON parsing. Tracked in `knowledge/log.md`.
 
 ## Reuses `scripts/` unchanged
 

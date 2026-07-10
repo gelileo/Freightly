@@ -487,3 +487,19 @@ actually used, and closed it as **won't-fix**. Reasoning:
   `warnings` path (not just `rejected`) propagates. Updated both
   `drafting-engine.md`/`drafting-engine.zh.md` known-gap notes accordingly. Full suite:
   `python3 -m pytest -q` → 33 passed, 1 skipped.
+
+## [2026-07-10] review | drafting-engine final whole-branch review
+
+- Final review (opus): no Critical; mergeable as-is for the headless slice (no auto-send,
+  human-approval gate downstream, scripts/ provably unchanged, 33 tests + 1 skipped, real
+  regression values locked).
+- One Important (documented, deferred to before the live Gemini path): validate_draft is
+  filled_slots-scoped — a fact the LLM writes into prose without reporting it bypasses the
+  gate. Corrected both drafting-engine articles to stop overstating the invariant as fully
+  "mechanical" and to record the follow-ups.
+- Follow-ups BEFORE GeminiLlmClient is wired into a real drafting path: (1) prose scan for
+  BOL/PRO shapes in body absent from source_text → warning; (2) token-boundary matching
+  (substring false-positive: a fabricated value that is a substring of a real one is currently
+  accepted); (3) GeminiLlmClient JSON-decode/empty-response hardening; (4) FakeLlmClient
+  empty-string/dup-missing polish; (5) load_template missing-file + skeleton-last-section guard.
+- Files: `knowledge/concepts/drafting/drafting-engine.md` + `.zh.md`, `knowledge/log.md`.
