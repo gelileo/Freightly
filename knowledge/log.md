@@ -514,3 +514,28 @@ actually used, and closed it as **won't-fix**. Reasoning:
 - Relationship-scoped access with cross-engagement isolation tests (the security boundary).
 - 11 new tests; full suite green. EN-only doc (headless-phase directive):
   `knowledge/concepts/app/identity-model.md`. Cases/state-machine/inbound-router = Slice 3.
+
+## [2026-07-10] compile | case core + state machine + inbound router (app Slice 3)
+
+- `app/cases.py`: cases/messages/audit_log; guarded `transition()` (illegal → ValueError, no
+  audit); `approve_message` is the ONLY path to sent/posted; edit/reject; `audit_trail`
+  ordered by rowid (CURRENT_TIMESTAMP too coarse).
+- `app/router.py`: `open_customer_case` (active engagement → EN broker draft, pending_approval)
+  and `ingest_broker_email` (parse→triage: skip creates nothing / match-by-thread / new
+  unattributed broker case; agent resolved via `agent_for_mailbox`, unknown mailbox raises).
+- `app/access.user_may_access_case` (agent-org member always; customer only via active
+  engagement) — isolation-tested.
+- 12 new tests; full suite green. EN doc `knowledge/concepts/app/case-workflow.md`.
+- Deferred: customer-facing ZH posting (needs engine summarize→ZH), broker-initiated customer
+  attribution by BOL.
+
+## [2026-07-10] fix | case-core review findings (Slice 3)
+
+- CRITICAL fixed: approval actions (approve/reject) now validate the case transition BEFORE
+  mutating the message, and wrap both writes in one commit with rollback-on-error — a failed
+  action no longer silently flips a message to sent/posted with no audit.
+- Router: matched-thread branch returns a FRESH Case (was stale); new-case branch adds the
+  pending draft BEFORE transitioning to PENDING_APPROVAL.
+- edit_message now preserves the prior body in a new audit `detail` column.
+- Tests added: atomic-failed-approve regression, matched-thread reply path, edit-records-prior-body,
+  full lifecycle → CLOSED. Doc flags thread_id as caller-supplied (header derivation deferred).

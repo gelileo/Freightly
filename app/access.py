@@ -26,6 +26,21 @@ def parties_connected(conn, customer_org_id, agent_org_id) -> bool:
         (customer_org_id, agent_org_id)).fetchone() is not None
 
 
+def user_may_access_case(conn, user_id, case_id) -> bool:
+    """True iff the user is a member of the case's agent org, or a member of its customer org
+    when an ACTIVE engagement links the two. Cross-org users get no access."""
+    row = conn.execute(
+        "SELECT agent_org_id, customer_org_id FROM cases WHERE id=?", (case_id,)).fetchone()
+    if row is None:
+        return False
+    if is_member(conn, user_id, row["agent_org_id"]):
+        return True
+    cust = row["customer_org_id"]
+    if cust and is_member(conn, user_id, cust):
+        return parties_connected(conn, cust, row["agent_org_id"])
+    return False
+
+
 def user_may_access_engagement(conn, user_id, engagement_id) -> bool:
     """True iff the engagement is ACTIVE and the user is a member of either party org."""
     row = conn.execute(

@@ -31,12 +31,14 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | Article | Summary | Updated |
 | --- | --- | --- |
 | [identity-model](concepts/app/identity-model.md) | Orgs/users/memberships/engagements/brokers + relationship-scoped access (Slice 2) | 2026-07-10 |
+| [case-workflow](concepts/app/case-workflow.md) | Case/message/audit + guarded state machine + inbound router + approval gate (Slice 3) | 2026-07-10 |
 
 ## Code modules (governed by the articles above, not separately indexed)
 
 | Module | Governing article(s) |
 | --- | --- |
-| `app/db.py`, `app/models.py`, `app/repo.py`, `app/access.py` | identity-model.md |
+| `app/db.py`, `app/models.py`, `app/repo.py`, `app/access.py` | identity-model.md, case-workflow.md |
+| `app/cases.py` (state machine, audit, approval), `app/router.py` (intake + inbound) | case-workflow.md |
 | `scripts/parse_eml.py` | eml-parsing.md |
 | `scripts/corpus.py` (`list_corpus`, `merged_best` — merges `LTL-mail/` + `LTL-mail-2/`) | eml-parsing.md, platform-architecture.md |
 | `scripts/corpus_report.py` (`classify_issue`, `corpus_report`) | issue-taxonomy.md |
