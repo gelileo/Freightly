@@ -385,3 +385,23 @@ Append-only chronological log of significant changes to this project. Each entry
   `.claude/skills/draft-broker-email/SKILL.md`, `knowledge/log.md`. Also produced (not
   committed, gitignored): `cases/60112079078/thread.md`,
   `cases/60112079078/drafts/1.md`, `cases/_skip-demo.md`.
+
+## [2026-07-09] compile | final whole-branch review fixes (v2)
+
+- Final review (opus) found an Important issue: `merged_best()`/`dedupe_snapshots` keys on BOL
+  alone and returns one file, but ~24/141 BOLs host TWO distinct threads (a shipment thread +
+  a separate billing/FFBA thread, e.g. 60114592263, 60112135944) — so it silently drops the
+  other-topic thread, and the matured docs asserted a false "same-thread snapshots" model.
+- Applied cheap guardrails: corrected `dedupe_snapshots` docstring, `eml-parsing.md`,
+  `platform-architecture.md` to document the two-threads-per-BOL caveat; added a ⚠️ warning to
+  `SKILL.md` step 1 (parse the specific referenced .eml for a named topic, esp. billing; don't
+  blindly trust merged_best). Fixed the Minor billing `accepted`-branch wording (drop the
+  already-answered "can Priority1 dispute" clause).
+- DEFERRED (needs a design decision): the real fix — dedupe keyed on (BOL + subject-family) or
+  merged_best returning all distinct threads per BOL. Tracked for a follow-up.
+- Triage of other recorded minors: whole-body triage kept (load-bearing for drayage; zero real
+  shipment issue skipped); PRO-in-HTML-table gap deferred (fails safe to [[MISSING]]).
+- 21 tests green. Files: `scripts/parse_eml.py`, `knowledge/concepts/drafting/eml-parsing.md`,
+  `knowledge/concepts/drafting/platform-architecture.md`,
+  `.claude/skills/draft-broker-email/SKILL.md`,
+  `knowledge/connections/issue-to-template-flow.md`, `knowledge/log.md`.

@@ -51,8 +51,11 @@ broker → carrier chain.
    sales/promo, meetings/auto-replies, plus the shipment-issue mail already covered by
    `LTL-mail/`). `scripts/corpus.py`'s `list_corpus()`/`merged_best()` treat both
    directories as one merged, deduped corpus (922 files total). Multiple `(1)(2)(3)…`
-   files per BOL are snapshots of the same thread growing over time, now scattered
-   across **either** directory. See [eml-parsing](eml-parsing.md).
+   files per BOL are usually snapshots of the same thread growing over time, now scattered
+   across **either** directory. **Caveat: ~24/141 BOLs host two DISTINCT threads under one
+   BOL** (a shipment thread + a separate billing/FFBA thread); `merged_best()` keeps only the
+   largest and silently drops the other — parse the specific referenced `.eml` when you need
+   a particular topic. See [eml-parsing](eml-parsing.md).
 2. **Parser** — `scripts/parse_eml.py`. Deterministic. Decodes MIME (base64 /
    quoted-printable), strips signatures/logos, splits quoted history into chronological
    turns, dedupes thread snapshots, extracts BOL/PRO and parties. See

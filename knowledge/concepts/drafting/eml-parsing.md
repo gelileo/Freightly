@@ -24,10 +24,17 @@ Deterministic decoding of raw `.eml` into a clean, chronological thread. Kept as
    `marker` line (e.g. `On May 21, 2026 … hs@justnanoinc.com wrote:`).
    **Two quoting formats appear and both must be handled** (see below).
 4. Extract `BOL` and `PRO#` numbers and the involved parties.
-5. Dedupe thread snapshots: `Re_ … 60114662390(1..8).eml` are one growing thread.
+5. Dedupe thread snapshots: `Re_ … 60114662390(1..8).eml` are usually one growing thread.
    **As built, `dedupe_snapshots()` provides this (keep the largest file per BOL) as a
-   library function, but the CLI does NOT call it** — the caller chooses which `.eml` to
-   parse. Pick the largest / most recent snapshot to avoid a stale thread.
+   library function; `scripts/corpus.py`'s `merged_best()` now calls it across both dirs,
+   and the parse_eml CLI still does not** — the caller chooses which `.eml` to parse.
+   **v2 caveat — one BOL can host TWO distinct threads:** in the merged corpus ~24/141 BOLs
+   carry both a shipment thread AND a separate billing/FFBA thread under the same BOL number
+   (e.g. `60114592263`: a POD thread + a "$500–$700 redelivery charge" billing thread;
+   `60112135944`: an FFBA billing file + a small shipment thread). Because `dedupe_snapshots()`
+   keys on BOL alone and keeps only the largest file, for those BOLs it **silently drops the
+   other-topic thread**. When you need a specific topic, parse the specific `.eml` the
+   customer/broker referenced — do not blindly trust `merged_best()`.
 
 ## Quoting formats (measured across the 71-file corpus, 2026-07-09)
 

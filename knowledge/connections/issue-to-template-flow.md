@@ -204,7 +204,10 @@ broker 的既成表态。
 - **`accepted`**(broker 主动提出可代为 dispute;真实引文:"Priority1 CAN dispute these
   charges on your behalf within 2 BUSINESS DAYS of receiving this notification",
   `LTL-mail-2/FFBA BOL# 60112079078.eml`)——致谢并请其推进 dispute、请其在结果出来后
-  回传给我方;`{dispute_basis}` 留空或仅一句致谢,不必重复复述费用。
+  回传给我方;`{dispute_basis}` 留空或仅一句致谢,不必重复复述费用。**注意(措辞校正):**
+  骨架结尾固定问的 "confirm whether Priority1 can dispute it on our behalf" 在本分支属**明知故问**
+  (broker 已明说可代为 dispute)——起草时应把该句改为推进语气(如 "please go ahead and dispute
+  it on our behalf, and share the outcome once available."),不要照抄原骨架句再问一遍。
 - **`needs-info`**(broker 索要支持文件以启动 dispute;真实引文:"please provide packing
   slip and spec sheet to dispute",`LTL-mail-2/Priority1 Variance Update for Shipment
   60111754054.eml`;另见 "supply a packing slip and a preprinted spec sheet/catalog page

@@ -22,6 +22,12 @@ description: Use when the shipper (Justnano) needs to draft an English email to 
    `scripts/corpus.py` 的 `merged_best()`(内部调用 `scripts/parse_eml.py` 的
    `dedupe_snapshots`,已跨 `LTL-mail/` + `LTL-mail-2/` 两个目录合并同一 BOL 的全部快照)
    选出该 BOL 体积最大的那份来解析。
+   **⚠️ 关键警告(一个 BOL 可能有两个不同话题的线程):** 合并语料里约 24/141 个 BOL
+   同时挂着**一条运输线程**和**一条独立的账单/FFBA 线程**(如 `60114592263`:POD 运输线程 +
+   "$500–$700 改送费"账单线程)。`merged_best()` 只按 BOL 取体积最大的那一份,会**悄悄丢弃
+   另一话题的线程**。因此当用户/broker 指名的是某个具体话题(尤其账单)时,**直接解析他引用
+   的那封 `.eml`**,不要盲目采用 `merged_best()`——否则可能把账单争议误当运输线程、triage 成
+   `shipment`,把真正要回的账单邮件漏掉。
 2. **TRIAGE(前置分流,v2 新增)**:取 thread 中最新一封来信的正文与发件人,调用
    `scripts/triage.py` 的 `triage(body, sender)`——治理文档是
    `knowledge/concepts/drafting/issue-taxonomy.md` 的 "v2:`triage` 前置维度" 一节,

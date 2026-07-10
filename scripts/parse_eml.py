@@ -115,7 +115,16 @@ def parse_eml(path: "str | Path") -> ParsedEmail:
 
 
 def dedupe_snapshots(paths: list[Path]) -> dict[str, Path]:
-    """Group by BOL (from filename), keep the largest (most complete) snapshot per BOL."""
+    """Group by BOL (from filename), keep the largest file per BOL.
+
+    CAVEAT: this keys on BOL alone and returns ONE Path per BOL. For most BOLs the
+    multiple files are snapshots of one growing thread, so "largest" == "most complete".
+    But ~24/141 BOLs in the merged corpus carry TWO distinct threads under one BOL —
+    a shipment thread AND a separate billing/FFBA thread (e.g. 60114592263, 60112135944).
+    For those, this silently keeps only the larger-topic file and hides the other. Callers
+    that need a specific topic must parse the specific .eml the customer/broker referenced
+    rather than trusting this. See knowledge/concepts/drafting/eml-parsing.md (v2 caveat).
+    """
     best: dict[str, Path] = {}
     for p in paths:
         for bol in re.findall(r"\b60\d{9}\b", p.name):
