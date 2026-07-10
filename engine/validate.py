@@ -18,15 +18,22 @@ class Validated:
     body: str
     missing: list[str] = field(default_factory=list)
     rejected: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 def validate_draft(raw: LlmDraft, *, source_text: str) -> Validated:
     body = raw.body
     missing = list(raw.missing)
     rejected: list[str] = []
+    warnings: list[str] = []
     for key, val in raw.filled_slots.items():
         if key in FACTUAL_SLOTS and val and val not in (source_text or ""):
             rejected.append(key)
             missing.append(key)
-            body = body.replace(val, f"[[MISSING: {key}]]")
-    return Validated(body=body, missing=missing, rejected=rejected)
+            new_body = body.replace(val, f"[[MISSING: {key}]]")
+            if new_body == body:
+                warnings.append(
+                    f"unredacted factual slot {key!r}: value not found verbatim in draft body — manual review required"
+                )
+            body = new_body
+    return Validated(body=body, missing=missing, rejected=rejected, warnings=warnings)
