@@ -40,6 +40,20 @@ Deterministic decoding of raw `.eml` into a clean, chronological thread. Kept as
 - The parser must recognize **both markers** and split on whichever appears; deeper history
   in the 25 "mixed" threads switches from Front to Outlook forwards.
 
+## Corpus scope (v2, built)
+
+The corpus is no longer just `LTL-mail/`. `scripts/corpus.py` (`list_corpus()` /
+`merged_best()`) merges **both** `LTL-mail/` (71 files) **and** `LTL-mail-2/` (851 files,
+Justnano's full broker inbox) into one 922-file corpus, deduping same-BOL snapshots
+**across** the two directories (not just within one) by delegating to this module's own
+`dedupe_snapshots()`. The two directories use different filename conventions (`Re_
+<subject>.eml` in `LTL-mail/` vs bare `<subject>.eml` in `LTL-mail-2/`) but both are matched
+by the same `60\d{9}` BOL regex in the filename, so grouping works uniformly. `LTL-mail-2`
+is a superset of `LTL-mail` by BOL (all 24 old BOLs ⊂ 141 new-corpus BOLs) but both
+directories are kept per the v2 scope decision (`knowledge/log.md`, 2026-07-09). Everything
+in "Known corpus quirks" and "Quoting formats" below applies uniformly to files in either
+directory — `parse_eml()` does not branch on which directory a file came from.
+
 ## Known corpus quirks
 
 - Chinese subjects/bodies appear (`回复：` = "Reply"); preserve UTF-8.
@@ -52,6 +66,17 @@ Deterministic decoding of raw `.eml` into a clean, chronological thread. Kept as
 - Timestamps come in mixed formats/timezones (e.g. `On May 21, 2026 at 9:21 AM GMT-5`).
 - Multi-BOL subjects → intended one case per BOL, but **as built the CLI writes only the
   primary `bol[0]`** (no fan-out; see `platform-architecture.md` → Case model → Known limitations).
+- **PRO# extraction misses HTML-table layouts (found during Task 6 end-to-end validation,
+  2026-07-09):** `extract_ids()`'s PRO regex (`PRO#?\s*(\d{6,})`) requires the literal "PRO"
+  text to sit directly next to its digits. Several `LTL-mail-2/` FFBA notices render the
+  BOL/PRO/Carrier/charge fields as an HTML `<table>` whose header row ("BOL", "PRO", …) and
+  data row ("60112079078", "3100034", …) are separated by whitespace/newlines once the HTML
+  is stripped to text — `parsed.pro` comes back `[]` even though the PRO number is present in
+  `thread.md`'s body text (just not adjacent to the label "PRO"). Confirmed on
+  `LTL-mail-2/FFBA BOL# 60112079078.eml` (PRO `3100034`, verified by reading the raw HTML
+  `<table>` cell order) — see `cases/60112079078/drafts/1.md` for the worked example. Not
+  fixed in this task (out of Task 6's file scope); a future fix would need a
+  table-column-aware extractor, not a purely adjacency-based regex.
 
 ## To do (implementation)
 

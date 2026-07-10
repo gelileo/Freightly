@@ -310,3 +310,78 @@ Append-only chronological log of significant changes to this project. Each entry
 - Files: `.claude/skills/draft-broker-email/SKILL.md`,
   `knowledge/connections/issue-to-template-flow.md`,
   `knowledge/concepts/freight/parties-and-roles.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | v2 end-to-end validation + doc maturation (task 6, final)
+
+- Full suite green before and after this task: `python3 -m pytest -q` → 21 passed
+  (unchanged; doc/demo-only task, no test files touched).
+- **End-to-end A (billing-dispute draft):** `LTL-mail-2/FFBA BOL# 60112079078.eml` →
+  `scripts/corpus.py`'s `merged_best()` confirms it's the only/largest snapshot for BOL
+  `60112079078` → parsed to `cases/60112079078/thread.md` →
+  `triage(body, sender) == "billing-dispute"` (real sender `Jalen.Turner@priority1.com`,
+  body hits `_BILLING` on "Free Freight Bill Audit"/"pricing variance"/"additional
+  charge(s)") → response type `accepted` (real quote: "Priority1 CAN dispute these
+  charges on your behalf within 2 BUSINESS DAYS…" — this is in fact the corpus example
+  `issue-to-template-flow.md`'s `billing-dispute` → `accepted` branch already cites) →
+  drafted via `templates/billing-dispute.md`, written to `cases/60112079078/drafts/1.md`.
+  Slots grounded in the real thread table (Carrier "Frontline Freight(FCSY)", Customer
+  Quote $545.63, Updated Charge $52.29, reweigh/reclass note) — no invented dollar
+  amounts, no `[[MISSING]]` needed, unsent (per skill step 8). `cases/` is gitignored
+  (local demo output, not committed).
+- **Found during A (documented, not fixed — out of this task's file scope):**
+  `extract_ids()`'s PRO regex requires "PRO" adjacent to its digits, so it misses PRO
+  numbers rendered in HTML `<table>` layouts (header row and data row separated once
+  HTML is stripped to text) — `parsed.pro` came back `[]` for BOL 60112079078 even though
+  the real PRO (`3100034`) is present in the body/raw HTML. Manually verified against the
+  raw HTML table cell order before using it in the draft (real data, not invented).
+  Documented as a "Known corpus quirk" in `eml-parsing.md`.
+- **End-to-end B (skip confirmation):** `LTL-mail-2/10% Off Freight Promo LTL, Truckload
+  And Expedited.eml` (sender `Ashton.Johnson@priority1.com`, a Priority1 sales/account
+  role already documented as always-`skip` in `parties-and-roles.md`) →
+  `triage(body, sender) == "skip"` (hits `_SKIP_BODY` on "promotion"/"10% discount"/"new
+  shippers"). Confirmed the skill stops at step 2: no `cases/<BOL>/` folder created (the
+  mail has no BOL at all), no draft written, no email produced. Recorded as
+  `cases/_skip-demo.md` (gitignored, local evidence).
+- **Doc maturation ("Planned v2" → built):** `platform-architecture.md` — replaced
+  "## Planned v2 (NOT yet built)" with "## v2 (built, 2026-07-09)"; rewrote the
+  `Components` list (corpus merge, triage front door added as first-class components,
+  template count 10+1), the `Data flow` diagram (now shows the triage branch point), and
+  `Error handling`/`Testing strategy` sections to reflect the built triage/merge/
+  billing-dispute machinery instead of describing it as a future plan. `eml-parsing.md` —
+  added a "Corpus scope (v2, built)" section describing the two-directory merge via
+  `scripts/corpus.py`, plus the PRO-extraction-gap quirk found above. `template-system.md`
+  — added `billing-dispute` to the slot vocabulary and the template count/convention
+  section (11 templates total: 10 shipment + 1 triage-driven billing-dispute; noted it is
+  NOT in `corpus_report()`'s subject-slug set and is covered by its own test instead of
+  `tests/test_templates.py`'s corpus-based assertion). All three kept `status: mature`,
+  `updated: 2026-07-09`.
+- **Two Minor fixes (same-task cleanup, per review):**
+  1. `issue-taxonomy.md`: corrected the category-count header from "10 类" (which
+     undercounted — the table lists 10 shipment slugs + `billing-dispute` = 11) to
+     "10 运输类 + `billing-dispute`,合计 11 类".
+  2. `SKILL.md`: fixed a real drift bug — step 2's `billing-dispute` bullet had stale step
+     numbers ("第 5–7 步" for 填槽/落盘/停下, which are actually steps 6/7/8 after the v2
+     TRIAGE step was inserted) and duplicated step 4/5's response-type-classification and
+     template-branch-selection mechanics inline, creating ambiguity about whether that
+     work happens at step 2 or step 4/5. Trimmed step 2's bullet to state only what's
+     skipped (issue-type sub-step) versus kept, with correct step references; step 4's
+     `broker response type` bullet is now the single place describing the classification
+     mechanics (explicitly applying to both `shipment` and `billing-dispute`); step 5
+     references "the response type determined in step 4" instead of restating it. Also
+     corrected the stale "10 个 issue slug" count in `## 约束` to "10 个运输类 + …
+     合计 11 个" to match issue-taxonomy.md.
+- **Anti-drift check:** every `knowledge/concepts/**` and `knowledge/connections/**`
+  article's frontmatter is `status: mature`, `updated: 2026-07-09` (verified by grepping
+  all files). Matured `knowledge/index.md`: refreshed each article's summary line to
+  mention its v2 content and added a new "Code modules" table pointing
+  `scripts/corpus.py` / `scripts/triage.py` / `scripts/triage_report.py` /
+  `templates/billing-dispute.md` / `SKILL.md` at their governing articles (`index.md` and
+  `log.md` themselves carry no frontmatter by design — they are the index/log, not
+  concept articles).
+- Files touched: `knowledge/concepts/drafting/platform-architecture.md`,
+  `knowledge/concepts/drafting/eml-parsing.md`,
+  `knowledge/concepts/drafting/template-system.md`,
+  `knowledge/concepts/drafting/issue-taxonomy.md`, `knowledge/index.md`,
+  `.claude/skills/draft-broker-email/SKILL.md`, `knowledge/log.md`. Also produced (not
+  committed, gitignored): `cases/60112079078/thread.md`,
+  `cases/60112079078/drafts/1.md`, `cases/_skip-demo.md`.

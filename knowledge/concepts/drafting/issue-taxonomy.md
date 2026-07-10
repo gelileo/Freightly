@@ -15,7 +15,7 @@ references:
 
 分类依据是主题行(subject)。计数为对全部 71 个 `LTL-mail/*.eml` 跑 `corpus_report()` 得到的 **BOL 出现数(含同一线程的多份快照,故会高于唯一 BOL 数)**;全部文件均可归类,`unknown = []`。
 
-## 类别(10 类,按出现频次排序;`billing-dispute` 为 v2 新增,见下方说明)
+## 类别(10 运输类 + `billing-dispute`,合计 11 类;运输类按出现频次排序,`billing-dispute` 为 v2 新增,见下方说明)
 
 | Slug | 客户诉求(中文定义) | 计数 | 真实示例文件 |
 | --- | --- | --- | --- |

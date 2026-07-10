@@ -32,20 +32,22 @@ description: Use when the shipper (Justnano) needs to draft an English email to 
    - **`billing-dispute`** —— 经纪人/承运商提出的额外收费或计费差异(FFBA pricing
      variance、out-of-route、reweigh/reclass、accessorial 等)。issue type 已由 triage
      直接固定为 `billing-dispute`(模板固定为 `templates/billing-dispute.md`),**跳过**
-     下面第 4 步的 issue-type 判定;仍需按 `response-taxonomy.md` 的判定优先级读最新一轮
-     broker 回复分类其 response type,再按
-     `knowledge/connections/issue-to-template-flow.md` 的 `billing-dispute` 小节选分支
-     措辞,继续走第 3 步(粘贴客户诉求,用于 `{dispute_basis}`)与第 5–7 步(填槽/落盘/
-     停下)。
+     下面第 4 步里的 issue-type 判定(只做该步的 response-type 判定,机制与 `shipment`
+     分支相同,不重复展开——见第 4 步);其余步骤(第 3/4/5/6/7/8 步)照常进行,选模板
+     环节固定为 `templates/billing-dispute.md`,分支挑选按
+     `knowledge/connections/issue-to-template-flow.md` 的 `billing-dispute` 小节(见
+     第 5 步)。
    - **`shipment`** —— 其余货运类诉求,继续走第 3 步起完整的 v1 两维(issue×response)
      分类流程与对应模板。
 3. **粘贴客户诉求**:请用户粘贴该问题的微信中文原文(若有)。`billing-dispute` 分支下,
    若无客户诉求(如 broker 主动发来的 FFBA 通知),该步可为空,`{dispute_basis}` 留空。
-4. **分类(两维,`shipment` 分支适用;`billing-dispute` 分支跳过 issue-type 判定,
-   只做 response-type 判定,见第 2 步)**:
-   - issue type:用 `scripts/corpus_report.py` 的 `classify_issue`(按邮件主题匹配),
-     或按 `knowledge/concepts/drafting/issue-taxonomy.md` 的定义人工判断。
-   - broker response type:读 thread 中最新一轮 broker 邮件,按
+4. **分类(response-type 判定对 `shipment`/`billing-dispute` 两分支都适用;issue-type
+   判定仅 `shipment` 分支需要,`billing-dispute` 分支已在第 2 步固定,跳过下面第一条)**:
+   - issue type(仅 `shipment` 分支):用 `scripts/corpus_report.py` 的 `classify_issue`
+     (按邮件主题匹配),或按 `knowledge/concepts/drafting/issue-taxonomy.md` 的定义
+     人工判断。
+   - broker response type(`shipment`/`billing-dispute` 两分支都要做,判定方法相同):
+     读 thread 中最新一轮 broker 邮件,按
      `knowledge/concepts/drafting/response-taxonomy.md` 的判定优先级(先看
      `confirmed-completed` → `declined` → `needs-info` → `offered-alternative` →
      否则 `accepted`)分类。
@@ -54,8 +56,8 @@ description: Use when the shipper (Justnano) needs to draft an English email to 
    再继续起草。不要先起草、之后"回头补文档"。
 5. **选模板**:打开 `templates/<issue-type>.md`(`billing-dispute` 分支固定为
    `templates/billing-dispute.md`),读其四个小节(`## Skeleton` / `## Slots` /
-   `## Tone` / `## Examples`)。按 broker response type 选用其分支/措辞——具体矩阵见
-   `knowledge/connections/issue-to-template-flow.md`(已成熟,列出
+   `## Tone` / `## Examples`)。按第 4 步判定的 broker response type 选用其分支/措辞
+   ——具体矩阵见 `knowledge/connections/issue-to-template-flow.md`(已成熟,列出
    `needs-info`/`declined`/`accepted`/`offered-alternative` 在各高频 issue 下、以及
    `billing-dispute` 下的措辞差异)。若 response type 判定含糊,按该文档的默认原则:
    偏向 `needs-info` 措辞(问询/澄清,不过度承诺)。
@@ -81,8 +83,8 @@ description: Use when the shipper (Justnano) needs to draft an English email to 
 ## 约束
 
 - 模板骨架永远是英文(发给经纪人看);客户的中文诉求经翻译后才能填入槽位。
-- 每次遇到新的 issue 类别或 broker response 类别(现有 10 个 issue slug /
-  6 个 response slug 都覆盖不了),必须在同一任务内更新
+- 每次遇到新的 issue 类别或 broker response 类别(现有 10 个运输类 issue slug +
+  `billing-dispute`,合计 11 个 / 6 个 response slug 都覆盖不了),必须在同一任务内更新
   `knowledge/concepts/drafting/issue-taxonomy.md` 或 `response-taxonomy.md`,
   并在 `knowledge/log.md` 追加记录(same-task 规则,参见 `CLAUDE.md`)。
 - 同理,`triage(body, sender)` 的三桶判定(`skip`/`billing-dispute`/`shipment`)出现
