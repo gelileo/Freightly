@@ -186,3 +186,222 @@ Append-only chronological log of significant changes to this project. Each entry
 - Recorded as "Planned v2" in `platform-architecture.md`; next step is a v2 implementation
   plan (writing-plans) then subagent execution. v1 remains as-built until then.
 - Files: `knowledge/concepts/drafting/platform-architecture.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | billing-dispute category + template + taxonomy update (v2 task 3)
+
+- TDD: wrote `tests/test_billing_template.py` (asserts `templates/billing-dispute.md`
+  exists with all four sections and the `{charge_ref}`/`{BOL}` slots); confirmed it FAILed
+  (no template file), then added `templates/billing-dispute.md` and confirmed it PASSes.
+- New template covers FFBA pricing-variance / out-of-route / reweigh-reclass / accessorial
+  disputes with a "review-before-invoicing" skeleton (slots `{broker_contact}`/`{charge_ref}`/
+  `{BOL}`/`{pro_clause}`/`{dispute_basis}`/`{shipper_signoff}`); never commits to a fabricated
+  amount or fault. Examples grounded in real `LTL-mail-2/` quotes: `FFBA BOL# 60112079078.eml`
+  ("Free Freight Bill Audit … pricing variance … Priority1 CAN dispute") and
+  `BOL 60114409180 _ P-118701-2621.eml` (William Jerry relaying Warp's "out of route charge …
+  145b Talmadge Rd, Edison, NJ").
+- Matured `concepts/drafting/issue-taxonomy.md`: added the `billing-dispute` row (10th
+  category; count `—` since it's sourced from `LTL-mail-2/` body-matching, not the 71-file
+  `LTL-mail/` subject-based main table) and a new "`triage` 前置维度" section that makes this
+  doc the governing reference for `scripts/triage.py`'s three-way front door (`skip` /
+  `billing-dispute` / `shipment`) — `skip` is non-actionable and never drafted;
+  `billing-dispute` and `shipment` are both draftable. Added a footnote in 说明与消歧
+  documenting why `billing-dispute` sits outside the `LTL-mail/`-derived count.
+- Updated `concepts/drafting/response-taxonomy.md`: billing-side broker replies reuse the
+  existing 6 response slugs (commonly `needs-info` for supporting docs, `declined` to hold
+  the charge, `accepted` to dispute on our behalf) — no new slug added unless the corpus
+  later shows a gap.
+- Both articles kept `status: mature`, `updated: 2026-07-09`.
+- Full suite green: `python3 -m pytest -q` → 20 passed (includes the new billing template
+  test and the pre-existing `tests/test_triage.py`).
+- Files: `templates/billing-dispute.md`, `tests/test_billing_template.py`,
+  `knowledge/concepts/drafting/issue-taxonomy.md`,
+  `knowledge/concepts/drafting/response-taxonomy.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | corpus-wide triage report + matured v2 distribution (task 4)
+
+- TDD: wrote `tests/test_triage_report.py` (asserts `sum(counts) == 922`, the three bucket
+  keys present, `billing-dispute >= 20`, `unknown_shipment` is a list); confirmed it FAILed
+  (`ModuleNotFoundError: No module named 'scripts.triage_report'`), then added
+  `scripts/triage_report.py` (`triage_report(dirs=CORPUS_DIRS)` — runs `parse_eml` + `triage`
+  over every file in the merged 922-file corpus, flags `shipment`-bucketed mail that
+  `classify_issue(subject)` still can't sub-route as `unknown_shipment`) and confirmed PASS.
+- Ran the report and read real body samples across all three buckets plus `unknown_shipment`;
+  found and fixed three genuine mis-classifications in `scripts/triage.py`'s `_SKIP_BODY`
+  (all verified corpus-wide for zero collateral before landing):
+  1. A 23-snapshot drayage rate-quote thread ("Drayage moves --- 40HQ from Phoenix Terminal
+     to Tempe, AZ") asks "Please advise: Drayage cost / Free time at terminal / Any
+     additional charges" — the literal "additional charge(s)" was tripping `_BILLING`,
+     misrouting a plain quote request into `billing-dispute`. Drayage is out of v2 scope
+     (`skip`) per the existing "decision | v2 scope" log entry. Added
+     `drayage cost|free time at terminal`.
+  2. 7 standalone Priority1 sales-rep outreach emails ("Priority1 Business.eml", "Let's Kick
+     Off ... .eml", etc. — "earn your business", "quote your upcoming shipments",
+     "competitive pricing") were landing in `shipment` because they didn't hit any existing
+     promo keyword. Added `earn (your|more) business|earn the right to move|quote (them|your
+     upcoming|more shipments|them out for you)|competitive (pricing|rates)`; manually
+     confirmed each hit is a standalone outreach email, not a reply thread that would get
+     silently skipped via a quoted-history false positive.
+  3. 18 automated invoice-notification emails ("JUSTNANO INC-(298296-P1) Priority1 Invoice
+     ....eml") are the same "Dear Customer, Attached are your invoice(s) ... log in to view
+     all invoices ... 2.5% surcharge" boilerplate as the `noreply@priority1.com`-sent
+     statements already caught by `_SKIP_SENDER`, but forwarded/cc'd through a human mailbox
+     (Kaylin Shaw / Melody Sparks) so the sender check missed them. Added the three
+     boilerplate phrases; verified across all 248 "Priority1 Invoice" files in the corpus
+     (230 already `skip`, these 18 now join them, zero collateral into `billing-dispute` or
+     other `shipment` files).
+- Real distribution after refinement (922 files total): `skip` 327, `billing-dispute` 60,
+  `shipment` 535; `unknown_shipment` (shipment mail whose subject `classify_issue` still
+  can't sub-route — expected, deferred to body-level sub-classification) 203. Before the
+  three fixes: `skip` 279, `billing-dispute` 83, `shipment` 560, `unknown_shipment` 228.
+  `billing-dispute >= 20` holds comfortably (60), no threshold adjustment needed.
+- Matured `concepts/drafting/issue-taxonomy.md`: added "## v2 triage 分布(实测 2026-07-09)"
+  with the real counts table and a full writeup of the three `_SKIP_BODY` refinements
+  (with the exact real-body quotes that justified each) and the before/after comparison.
+- Full suite green: `python3 -m pytest -q` → 21 passed.
+- Files: `scripts/triage_report.py`, `tests/test_triage_report.py`, `scripts/triage.py`,
+  `knowledge/concepts/drafting/issue-taxonomy.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | v2 skill flow (triage: skip/billing/shipment) + freight terms (task 5)
+
+- Upgraded `.claude/skills/draft-broker-email/SKILL.md` to the v2 body-based triage flow:
+  inserted a front-door **TRIAGE** step (new step 2, after locate-case+snapshot, before the
+  issue×response classification) that calls `scripts/triage.py`'s `triage(body, sender)`:
+  `skip` → tell the user it's non-actionable and stop, never drafting/never writing
+  `cases/<BOL>/drafts/`; `billing-dispute` → issue type is fixed to
+  `templates/billing-dispute.md` by triage itself (skip the issue-type sub-step), still
+  classify broker response type per `response-taxonomy.md`, then continue through
+  fill-slots/save/stop; `shipment` → unchanged v1 two-dimension (issue×response)
+  classification and templates. Step 1 (locate case) now points at `scripts/corpus.py`'s
+  `merged_best()` (wraps `parse_eml.dedupe_snapshots`, merges across **both**
+  `LTL-mail/` + `LTL-mail-2/`) as the preferred way to pick the fullest snapshot. Renumbered
+  the remaining steps (3–8) and added two constraints: `triage == skip` mail never reaches
+  `issue-to-template-flow.md`'s matrix, and `triage.py` misclassifications get the same
+  same-task update-and-log treatment as issue/response taxonomy gaps.
+- Matured `knowledge/connections/issue-to-template-flow.md`: added a one-line v2 scope note
+  under `## Rule` (the matrix only applies to `billing-dispute`/`shipment`; `skip` mail never
+  enters it, having already terminated in `SKILL.md` step 2), and a new
+  `### billing-dispute (模板: templates/billing-dispute.md)` section with three real-quote-
+  grounded branches: `accepted` ("Priority1 CAN dispute these charges on your behalf within 2
+  BUSINESS DAYS", `LTL-mail-2/FFBA BOL# 60112079078.eml`) → thank + ask them to proceed and
+  report back; `needs-info` ("please provide packing slip and spec sheet to dispute",
+  `LTL-mail-2/Priority1 Variance Update for Shipment 60111754054.eml`; also
+  `LTL-mail-2/Variance for BOL 60114679882.eml`) → supply the requested info, honestly noting
+  the corpus asks for *supporting documents* rather than the originally-assumed
+  reference/date; `declined` (no real reply-to-our-dispute quote exists yet in the corpus —
+  all 7 FFBA/variance emails found are broker-initiated first notices — so this branch is
+  marked inferred, analogous to `return-reason`'s `declined`) → restate the charge, request
+  carrier support docs + ask the dispute path, don't concede. `status: mature` kept.
+- Matured `knowledge/concepts/freight/parties-and-roles.md`: added freight terms **FFBA**
+  (Free Freight Bill Audit — Priority1's post-shipment audit that can add a pricing variance),
+  **out-of-route charge**, **accessorial**, **reweigh/reclass**, **PO#** (receiver's purchase
+  order number needed to schedule an appointment delivery — real quote from
+  `LTL-mail-2/60112049235.eml`), and **drayage** (container short-haul — out of v2 scope,
+  `triage.py` special-cases it to `skip` even though its body literally contains "additional
+  charge(s)"), each grounded in a real `LTL-mail-2/` quote. Added new parties to the chain
+  table: **Ashton Johnson** (Priority1 Account Executive / sales, `Ashton.Johnson@priority1.com`,
+  always `triage == skip`), **`NoReply@Priority1.com`** (automated statement sender, matched by
+  `_SKIP_SENDER`), and carrier **Warp** (relays an out-of-route charge and a TONU fee via
+  broker Will Jerry). Added a new "v2 additions (`LTL-mail-2/`, 2026-07-09)" section rather
+  than editing the pre-existing "Confirmed across the corpus" section, since that section is
+  explicitly scoped to the 71-file `LTL-mail/` verification and stating "one carrier named so
+  far: AAA Cooper" is still accurate for that scope. `status: mature` kept on both articles.
+- Doc-only task, no code/tests changed. Full suite green: `python3 -m pytest -q` → 21 passed
+  (unchanged from before this task).
+- Files: `.claude/skills/draft-broker-email/SKILL.md`,
+  `knowledge/connections/issue-to-template-flow.md`,
+  `knowledge/concepts/freight/parties-and-roles.md`, `knowledge/log.md`.
+
+## [2026-07-09] compile | v2 end-to-end validation + doc maturation (task 6, final)
+
+- Full suite green before and after this task: `python3 -m pytest -q` → 21 passed
+  (unchanged; doc/demo-only task, no test files touched).
+- **End-to-end A (billing-dispute draft):** `LTL-mail-2/FFBA BOL# 60112079078.eml` →
+  `scripts/corpus.py`'s `merged_best()` confirms it's the only/largest snapshot for BOL
+  `60112079078` → parsed to `cases/60112079078/thread.md` →
+  `triage(body, sender) == "billing-dispute"` (real sender `Jalen.Turner@priority1.com`,
+  body hits `_BILLING` on "Free Freight Bill Audit"/"pricing variance"/"additional
+  charge(s)") → response type `accepted` (real quote: "Priority1 CAN dispute these
+  charges on your behalf within 2 BUSINESS DAYS…" — this is in fact the corpus example
+  `issue-to-template-flow.md`'s `billing-dispute` → `accepted` branch already cites) →
+  drafted via `templates/billing-dispute.md`, written to `cases/60112079078/drafts/1.md`.
+  Slots grounded in the real thread table (Carrier "Frontline Freight(FCSY)", Customer
+  Quote $545.63, Updated Charge $52.29, reweigh/reclass note) — no invented dollar
+  amounts, no `[[MISSING]]` needed, unsent (per skill step 8). `cases/` is gitignored
+  (local demo output, not committed).
+- **Found during A (documented, not fixed — out of this task's file scope):**
+  `extract_ids()`'s PRO regex requires "PRO" adjacent to its digits, so it misses PRO
+  numbers rendered in HTML `<table>` layouts (header row and data row separated once
+  HTML is stripped to text) — `parsed.pro` came back `[]` for BOL 60112079078 even though
+  the real PRO (`3100034`) is present in the body/raw HTML. Manually verified against the
+  raw HTML table cell order before using it in the draft (real data, not invented).
+  Documented as a "Known corpus quirk" in `eml-parsing.md`.
+- **End-to-end B (skip confirmation):** `LTL-mail-2/10% Off Freight Promo LTL, Truckload
+  And Expedited.eml` (sender `Ashton.Johnson@priority1.com`, a Priority1 sales/account
+  role already documented as always-`skip` in `parties-and-roles.md`) →
+  `triage(body, sender) == "skip"` (hits `_SKIP_BODY` on "promotion"/"10% discount"/"new
+  shippers"). Confirmed the skill stops at step 2: no `cases/<BOL>/` folder created (the
+  mail has no BOL at all), no draft written, no email produced. Recorded as
+  `cases/_skip-demo.md` (gitignored, local evidence).
+- **Doc maturation ("Planned v2" → built):** `platform-architecture.md` — replaced
+  "## Planned v2 (NOT yet built)" with "## v2 (built, 2026-07-09)"; rewrote the
+  `Components` list (corpus merge, triage front door added as first-class components,
+  template count 10+1), the `Data flow` diagram (now shows the triage branch point), and
+  `Error handling`/`Testing strategy` sections to reflect the built triage/merge/
+  billing-dispute machinery instead of describing it as a future plan. `eml-parsing.md` —
+  added a "Corpus scope (v2, built)" section describing the two-directory merge via
+  `scripts/corpus.py`, plus the PRO-extraction-gap quirk found above. `template-system.md`
+  — added `billing-dispute` to the slot vocabulary and the template count/convention
+  section (11 templates total: 10 shipment + 1 triage-driven billing-dispute; noted it is
+  NOT in `corpus_report()`'s subject-slug set and is covered by its own test instead of
+  `tests/test_templates.py`'s corpus-based assertion). All three kept `status: mature`,
+  `updated: 2026-07-09`.
+- **Two Minor fixes (same-task cleanup, per review):**
+  1. `issue-taxonomy.md`: corrected the category-count header from "10 类" (which
+     undercounted — the table lists 10 shipment slugs + `billing-dispute` = 11) to
+     "10 运输类 + `billing-dispute`,合计 11 类".
+  2. `SKILL.md`: fixed a real drift bug — step 2's `billing-dispute` bullet had stale step
+     numbers ("第 5–7 步" for 填槽/落盘/停下, which are actually steps 6/7/8 after the v2
+     TRIAGE step was inserted) and duplicated step 4/5's response-type-classification and
+     template-branch-selection mechanics inline, creating ambiguity about whether that
+     work happens at step 2 or step 4/5. Trimmed step 2's bullet to state only what's
+     skipped (issue-type sub-step) versus kept, with correct step references; step 4's
+     `broker response type` bullet is now the single place describing the classification
+     mechanics (explicitly applying to both `shipment` and `billing-dispute`); step 5
+     references "the response type determined in step 4" instead of restating it. Also
+     corrected the stale "10 个 issue slug" count in `## 约束` to "10 个运输类 + …
+     合计 11 个" to match issue-taxonomy.md.
+- **Anti-drift check:** every `knowledge/concepts/**` and `knowledge/connections/**`
+  article's frontmatter is `status: mature`, `updated: 2026-07-09` (verified by grepping
+  all files). Matured `knowledge/index.md`: refreshed each article's summary line to
+  mention its v2 content and added a new "Code modules" table pointing
+  `scripts/corpus.py` / `scripts/triage.py` / `scripts/triage_report.py` /
+  `templates/billing-dispute.md` / `SKILL.md` at their governing articles (`index.md` and
+  `log.md` themselves carry no frontmatter by design — they are the index/log, not
+  concept articles).
+- Files touched: `knowledge/concepts/drafting/platform-architecture.md`,
+  `knowledge/concepts/drafting/eml-parsing.md`,
+  `knowledge/concepts/drafting/template-system.md`,
+  `knowledge/concepts/drafting/issue-taxonomy.md`, `knowledge/index.md`,
+  `.claude/skills/draft-broker-email/SKILL.md`, `knowledge/log.md`. Also produced (not
+  committed, gitignored): `cases/60112079078/thread.md`,
+  `cases/60112079078/drafts/1.md`, `cases/_skip-demo.md`.
+
+## [2026-07-09] compile | final whole-branch review fixes (v2)
+
+- Final review (opus) found an Important issue: `merged_best()`/`dedupe_snapshots` keys on BOL
+  alone and returns one file, but ~24/141 BOLs host TWO distinct threads (a shipment thread +
+  a separate billing/FFBA thread, e.g. 60114592263, 60112135944) — so it silently drops the
+  other-topic thread, and the matured docs asserted a false "same-thread snapshots" model.
+- Applied cheap guardrails: corrected `dedupe_snapshots` docstring, `eml-parsing.md`,
+  `platform-architecture.md` to document the two-threads-per-BOL caveat; added a ⚠️ warning to
+  `SKILL.md` step 1 (parse the specific referenced .eml for a named topic, esp. billing; don't
+  blindly trust merged_best). Fixed the Minor billing `accepted`-branch wording (drop the
+  already-answered "can Priority1 dispute" clause).
+- DEFERRED (needs a design decision): the real fix — dedupe keyed on (BOL + subject-family) or
+  merged_best returning all distinct threads per BOL. Tracked for a follow-up.
+- Triage of other recorded minors: whole-body triage kept (load-bearing for drayage; zero real
+  shipment issue skipped); PRO-in-HTML-table gap deferred (fails safe to [[MISSING]]).
+- 21 tests green. Files: `scripts/parse_eml.py`, `knowledge/concepts/drafting/eml-parsing.md`,
+  `knowledge/concepts/drafting/platform-architecture.md`,
+  `.claude/skills/draft-broker-email/SKILL.md`,
+  `knowledge/connections/issue-to-template-flow.md`, `knowledge/log.md`.
