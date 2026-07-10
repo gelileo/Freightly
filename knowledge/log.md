@@ -539,3 +539,11 @@ actually used, and closed it as **won't-fix**. Reasoning:
 - edit_message now preserves the prior body in a new audit `detail` column.
 - Tests added: atomic-failed-approve regression, matched-thread reply path, edit-records-prior-body,
   full lifecycle → CLOSED. Doc flags thread_id as caller-supplied (header derivation deferred).
+
+## [2026-07-10] compile | headless backend capstone (end-to-end)
+
+- `tests/test_e2e_headless.py`: full loop on real corpus data — identity setup → ingest a real
+  FFBA broker email → broker-initiated case + pending draft → agent approves → sent + audit;
+  plus customer-initiated pickup → edit → approve. Deterministic (FakeLlmClient).
+- `knowledge/concepts/app/headless-backend.md`: overview tying engine + identity + case core,
+  the guarantees, and the built-vs-deferred list. Headless backend core is functionally complete.
