@@ -91,16 +91,17 @@ triage(分流) → classify(分类) → template(选模板) → fill(填槽/LLM)
    声称已填的每一个 factual 槽位是否能在原文里找到,把找不到的重写为 `[[MISSING: key]]`。
 6. **结果** —— `DraftResult(triage=t, issue=issue, template_slug=slug,
    draft_lang=raw.lang, draft_body=v.body, missing=v.missing,
-   rejected_slots=v.rejected)`。
+   rejected_slots=v.rejected, warnings=v.warnings)`。
 
 `DraftRequest` 字段:`body, sender, subject, facts: dict[str,str] = {}, source_text: str
 = "", target_lang: str = "en"`。
 
-**已知缺口(如实记录,尚未修复):** `Validated.warnings`(见下文)由 `validate_draft()` 计算出来,
-但 `DraftResult` 没有 `warnings` 字段——`draft()` 的调用方目前无法看到这条失败必现(fail-loud)
-警告,除非直接调用 `validate_draft()`。现有测试没有任何一条断言 `DraftResult.warnings`。在把引擎
-接入 app spec 描述的后端之前应当补上这一点,因为那里的警告必须能传到 agent 控制台,而不只是一行
-日志。
+**失败必现(fail-loud)信号已传达给调用方:** `DraftResult` 携带一个 `warnings: list[str] = []`
+字段,来自 `Validated.warnings`(见下文)。`draft()` 的调用方不再需要直接调用 `validate_draft()`
+才能看到这条失败必现警告——它现在是返回值的一部分,可以直接在审批 UX(例如 agent 控制台)里展示,
+而不只是停留在一行日志里。`tests/test_engine_drafting.py::test_draft_surfaces_validator_warnings`
+用一个桩 LLM 断言了这条传递路径:该桩把某个 factual 值重新格式化,使其不再是草稿正文的逐字子串
+(模拟真实 LLM 的格式漂移),从而强制走 `warnings` 路径而不是 `rejected`/脱敏路径。
 
 ## 反捏造:`FACTUAL_SLOTS` 与 `warnings` 失败必现(fail-loud)机制
 
@@ -190,7 +191,7 @@ agent 控制台——见下方"本切片范围之外")。spec 的 §12("从 `hs`
 
 ## 测试策略
 
-`python3 -m pytest -q` → 32 passed, 1 skipped(那个被保护的、需要真实 Gemini 的测试,没有
+`python3 -m pytest -q` → 33 passed, 1 skipped(那个被保护的、需要真实 Gemini 的测试,没有
 `GEMINI_API_KEY` 时会被跳过)。覆盖 `engine/` 的测试文件:
 
 - `tests/test_engine_llm.py` —— `FakeLlmClient` 的填槽/`[[MISSING]]` 行为。

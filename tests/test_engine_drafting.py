@@ -27,3 +27,16 @@ def test_draft_shipment_classifies_issue():
               FakeLlmClient())
     assert r.triage == "shipment"
     assert r.issue == "pickup" and r.template_slug == "pickup"
+
+
+def test_draft_surfaces_validator_warnings():
+    from engine.llm import LlmDraft
+    class _DriftLlm:  # renders a factual value NOT present verbatim in the body
+        def generate(self, *, system, template, facts, source_text, target_lang):
+            return LlmDraft(lang="en", body="Regarding your shipment.",
+                            filled_slots={"BOL": "99999999999"}, missing=[])
+    r = draft(DraftRequest(body="please pick up", sender="ltlwest@priority1.com",
+                           subject="pickup --- 60114338678", facts={"BOL": "99999999999"},
+                           source_text="the real shipment is 60114338678"), _DriftLlm())
+    assert r.triage == "shipment"
+    assert r.warnings and any("BOL" in w for w in r.warnings)

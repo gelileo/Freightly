@@ -476,3 +476,14 @@ actually used, and closed it as **won't-fix**. Reasoning:
 - Files touched: `knowledge/concepts/drafting/drafting-engine.md`,
   `knowledge/concepts/drafting/drafting-engine.zh.md`, `knowledge/index.md`,
   `knowledge/log.md`.
+
+## [2026-07-10] compile | DraftResult surfaces Validated.warnings
+
+- Closed the known gap: `engine/drafting.py`'s `DraftResult` gained a `warnings:
+  list[str] = []` field, and `draft()` now passes `warnings=v.warnings` through, so the
+  anti-fabrication fail-loud signal reaches callers instead of being dropped. Added
+  `test_draft_surfaces_validator_warnings` (`tests/test_engine_drafting.py`) using a
+  stub LLM that reformats a factual value to simulate real-LLM drift, proving the
+  `warnings` path (not just `rejected`) propagates. Updated both
+  `drafting-engine.md`/`drafting-engine.zh.md` known-gap notes accordingly. Full suite:
+  `python3 -m pytest -q` → 33 passed, 1 skipped.

@@ -103,17 +103,19 @@ triage → classify → template → fill (LLM) → validate
    untraceable ones to `[[MISSING: key]]`.
 6. **Result** — `DraftResult(triage=t, issue=issue, template_slug=slug,
    draft_lang=raw.lang, draft_body=v.body, missing=v.missing,
-   rejected_slots=v.rejected)`.
+   rejected_slots=v.rejected, warnings=v.warnings)`.
 
 `DraftRequest` fields: `body, sender, subject, facts: dict[str,str] = {}, source_text:
 str = "", target_lang: str = "en"`.
 
-**Known gap (documented, not yet fixed):** `Validated.warnings` (see below) is computed
-by `validate_draft()` but `DraftResult` has no `warnings` field — a caller of `draft()`
-currently cannot see the fail-loud warning without calling `validate_draft()` directly.
-No test asserts `DraftResult.warnings` today. This should be closed before the engine is
-wired into the app-spec backend, where a warning must reach the agent console, not just
-a log line.
+**Fail-loud signal reaches callers:** `DraftResult` carries a `warnings: list[str] = []`
+field, populated from `Validated.warnings` (see below). A caller of `draft()` no longer
+needs to call `validate_draft()` directly to see the fail-loud warning — it is part of
+the return value, ready to be surfaced in an approval UX (e.g. the agent console) rather
+than only living in a log line. `tests/test_engine_drafting.py::test_draft_surfaces_validator_warnings`
+asserts this propagation using a stub LLM that reformats a factual value so it isn't a
+verbatim substring of the draft body (simulating real-LLM formatting drift), forcing the
+`warnings` path rather than the `rejected`/redaction path.
 
 ## Anti-fabrication: `FACTUAL_SLOTS` and the `warnings` fail-loud mechanism
 
@@ -216,7 +218,7 @@ into an importable, testable function rather than only being reachable through t
 
 ## Testing strategy
 
-`python3 -m pytest -q` → 32 passed, 1 skipped (the guarded live-Gemini test, skipped
+`python3 -m pytest -q` → 33 passed, 1 skipped (the guarded live-Gemini test, skipped
 without `GEMINI_API_KEY`). Test files covering `engine/`:
 
 - `tests/test_engine_llm.py` — `FakeLlmClient` slot-fill/`[[MISSING]]` behavior.

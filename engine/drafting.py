@@ -30,6 +30,7 @@ class DraftResult:
     draft_body: str
     missing: list[str] = field(default_factory=list)
     rejected_slots: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 def draft(req: DraftRequest, llm: LlmClient) -> DraftResult:
@@ -48,4 +49,5 @@ def draft(req: DraftRequest, llm: LlmClient) -> DraftResult:
                        source_text=req.source_text, target_lang=req.target_lang)
     v = validate_draft(raw, source_text=req.source_text)
     return DraftResult(triage=t, issue=issue, template_slug=slug, draft_lang=raw.lang,
-                       draft_body=v.body, missing=v.missing, rejected_slots=v.rejected)
+                       draft_body=v.body, missing=v.missing, rejected_slots=v.rejected,
+                       warnings=v.warnings)
