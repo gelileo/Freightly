@@ -405,3 +405,22 @@ Append-only chronological log of significant changes to this project. Each entry
   `knowledge/concepts/drafting/platform-architecture.md`,
   `.claude/skills/draft-broker-email/SKILL.md`,
   `knowledge/connections/issue-to-template-flow.md`, `knowledge/log.md`.
+
+## [2026-07-09] decision | merged_best redesign CLOSED (won't-fix)
+
+Reconsidered the deferred `merged_best()` subject-family redesign against how the corpus is
+actually used, and closed it as **won't-fix**. Reasoning:
+
+- **Classification & template-building iterate ALL files, not `merged_best()`.** `corpus_report.py`
+  uses `glob("*.eml")` and `triage_report.py` uses `list_corpus()` — every file (both the
+  shipment thread and the billing thread of a shared BOL) is classified independently. The
+  two-threads-per-BOL behavior does not affect taxonomy/triage/template derivation at all.
+- **`merged_best()` is used only at runtime** (`SKILL.md` step 1) as a convenience to auto-locate
+  an archived thread by BOL, plus one unit test. In live use the input is the actual incoming
+  `.eml`/pasted message being replied to — not an archive lookup — so the mis-pick can't silently
+  drop a real reply. The existing SKILL.md step-1 ⚠️ guardrail (parse the specific referenced
+  `.eml` for a named topic, especially billing) fully covers the residual convenience case.
+- Net: the redesign would add dedupe complexity for no build-time benefit and a runtime benefit
+  the guardrail already provides. The documented caveats in `eml-parsing.md` /
+  `platform-architecture.md` and the SKILL.md guardrail remain (they are accurate and useful);
+  only the code redesign is closed.
