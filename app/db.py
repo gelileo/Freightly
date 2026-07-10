@@ -43,6 +43,43 @@ CREATE TABLE IF NOT EXISTS broker_accounts (
 -- A mailbox is the inbound-router's tenant-routing key: it must map to exactly one agent.
 CREATE UNIQUE INDEX IF NOT EXISTS ux_broker_accounts_mailbox
     ON broker_accounts (mailbox) WHERE mailbox IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS cases (
+    id                TEXT PRIMARY KEY,
+    agent_org_id      TEXT NOT NULL REFERENCES orgs(id),
+    customer_org_id   TEXT REFERENCES orgs(id),           -- nullable: broker-initiated cases may start unattributed
+    broker_account_id TEXT REFERENCES broker_accounts(id),
+    shipment_bol      TEXT,
+    shipment_pro      TEXT,
+    origin            TEXT NOT NULL CHECK (origin IN ('customer', 'broker')),
+    issue_type        TEXT,
+    status            TEXT NOT NULL,
+    mail_thread_id    TEXT,
+    created_at        TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS messages (
+    id              TEXT PRIMARY KEY,
+    case_id         TEXT NOT NULL REFERENCES cases(id),
+    party           TEXT NOT NULL CHECK (party IN ('customer', 'agent', 'broker', 'system')),
+    channel         TEXT NOT NULL CHECK (channel IN ('app', 'email')),
+    lang            TEXT CHECK (lang IN ('zh', 'en')),
+    body            TEXT NOT NULL,
+    status          TEXT NOT NULL CHECK (status IN
+                        ('draft', 'pending_approval', 'approved', 'sent', 'posted', 'received')),
+    mail_message_id TEXT,
+    in_reply_to     TEXT,
+    classification  TEXT,
+    created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS audit_log (
+    id          TEXT PRIMARY KEY,
+    case_id     TEXT NOT NULL REFERENCES cases(id),
+    actor       TEXT NOT NULL,
+    action      TEXT NOT NULL,
+    from_status TEXT,
+    to_status   TEXT,
+    at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
