@@ -11,6 +11,8 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | [response-taxonomy](concepts/drafting/response-taxonomy.md) | Broker response categories (6 slugs, reused as-is for billing-dispute) | 2026-07-09 |
 | [eml-parsing](concepts/drafting/eml-parsing.md) | How raw `.eml` threads are decoded, deduped, split into turns; now spans `LTL-mail/` + `LTL-mail-2/` via `scripts/corpus.py` | 2026-07-09 |
 | [template-system](concepts/drafting/template-system.md) | Template skeletons, slot conventions, worked examples — 10 shipment templates + `billing-dispute` (11 total) | 2026-07-09 |
+| [drafting-engine](concepts/drafting/drafting-engine.md) | The `engine/` package: `LlmClient` port (+Fake/Gemini), `draft()` pipeline (triage→classify→template→fill→LLM→validate), anti-fabrication `FACTUAL_SLOTS` + `warnings` fail-loud rule, reuses `scripts/` unchanged, locked corpus-regression distribution — first built slice of the app spec | 2026-07-10 |
+| [drafting-engine.zh](concepts/drafting/drafting-engine.zh.md) | 中文版:`engine/` 包、`draft()` 流水线、反捏造 `FACTUAL_SLOTS` 与 `warnings` 失败必现机制、原样复用 `scripts/`、锁定的语料回归分布 | 2026-07-10 |
 
 ## Domain
 
@@ -35,3 +37,7 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | `scripts/triage_report.py` (`triage_report()` — full-corpus bucket distribution) | issue-taxonomy.md → "v2 triage 分布" |
 | `templates/billing-dispute.md` | template-system.md, issue-to-template-flow.md |
 | `.claude/skills/draft-broker-email/SKILL.md` | platform-architecture.md, all of the above |
+| `engine/llm.py` (`LlmDraft`, `LlmClient`, `FakeLlmClient`, `GeminiLlmClient`) | drafting-engine.md |
+| `engine/validate.py` (`validate_draft`, `FACTUAL_SLOTS`, `Validated`) | drafting-engine.md |
+| `engine/knowledge.py` (`load_template`) | drafting-engine.md |
+| `engine/drafting.py` (`DraftRequest`, `DraftResult`, `draft`) | drafting-engine.md |
