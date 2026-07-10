@@ -32,6 +32,7 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | --- | --- | --- |
 | [identity-model](concepts/app/identity-model.md) | Orgs/users/memberships/engagements/brokers + relationship-scoped access (Slice 2) | 2026-07-10 |
 | [case-workflow](concepts/app/case-workflow.md) | Case/message/audit + guarded state machine + inbound router + approval gate (Slice 3) | 2026-07-10 |
+| [headless-backend](concepts/app/headless-backend.md) | End-to-end headless loop overview + built/deferred | 2026-07-10 |
 
 ## Code modules (governed by the articles above, not separately indexed)
 
