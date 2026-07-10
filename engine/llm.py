@@ -42,3 +42,35 @@ class FakeLlmClient:
 
         body = re.sub(r"\{(\w+)\}", repl, template)
         return LlmDraft(lang=target_lang, body=body, filled_slots=filled, missing=missing)
+
+
+class GeminiLlmClient:
+    """Real adapter. Requires `google-genai` and GEMINI_API_KEY. Requests structured JSON
+    and maps it to LlmDraft. Deterministic-first: factual slots in `facts` are passed through
+    and the model is instructed to use ONLY those for facts (validator enforces anyway)."""
+
+    MODEL = "gemini-2.5-flash"
+
+    def __init__(self, api_key: str | None = None):
+        import os
+        from google import genai  # google-genai
+        self._client = genai.Client(api_key=api_key or os.environ["GEMINI_API_KEY"])
+
+    def generate(self, *, system, template, facts, source_text, target_lang):
+        import json
+        prompt = (
+            f"{system}\nTarget language: {target_lang}.\n"
+            f"Template (fill {{slots}}; keep the English skeleton English):\n{template}\n"
+            f"Known facts (use ONLY these for factual slots; never invent BOL/PRO/address/"
+            f"date/amount — leave unknown factual slots as [[MISSING: key]]):\n{json.dumps(facts, ensure_ascii=False)}\n"
+            f"Authoritative source (do not state facts absent here):\n{source_text}\n"
+            'Return JSON: {"lang":"..","body":"..","filled_slots":{},"missing":[]}'
+        )
+        resp = self._client.models.generate_content(
+            model=self.MODEL, contents=prompt,
+            config={"response_mime_type": "application/json"},
+        )
+        data = json.loads(resp.text)
+        from engine.llm import LlmDraft
+        return LlmDraft(lang=data.get("lang", target_lang), body=data.get("body", ""),
+                        filled_slots=data.get("filled_slots", {}), missing=data.get("missing", []))
