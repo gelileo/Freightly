@@ -503,3 +503,14 @@ actually used, and closed it as **won't-fix**. Reasoning:
   accepted); (3) GeminiLlmClient JSON-decode/empty-response hardening; (4) FakeLlmClient
   empty-string/dup-missing polish; (5) load_template missing-file + skeleton-last-section guard.
 - Files: `knowledge/concepts/drafting/drafting-engine.md` + `.zh.md`, `knowledge/log.md`.
+
+## [2026-07-10] compile | domain identity/relationship core (app Slice 2)
+
+- New `app/` backend package (stdlib sqlite3, dependency-free): `db.py` (schema+connection),
+  `models.py` (dataclasses), `repo.py` (orgs/users/memberships/engagements/brokers/broker-accounts),
+  `access.py` (relationship-scoped access).
+- Multi-sided identity per the app spec: typed orgs (customer|agent), invite/approve engagements
+  (customer↔agent), agent broker-accounts (agent↔broker) with mailbox → `agent_for_mailbox()`.
+- Relationship-scoped access with cross-engagement isolation tests (the security boundary).
+- 11 new tests; full suite green. EN-only doc (headless-phase directive):
+  `knowledge/concepts/app/identity-model.md`. Cases/state-machine/inbound-router = Slice 3.
