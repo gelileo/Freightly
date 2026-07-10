@@ -65,3 +65,20 @@ def test_ingest_unknown_mailbox_raises():
     with pytest.raises(ValueError):
         router.ingest_broker_email(c, eml="LTL-mail-2/FFBA BOL# 60112079078.eml",
                                    to_mailbox="nobody@nowhere.com", llm=FakeLlmClient())
+
+
+def test_ingest_matched_thread_appends_reply():
+    c = _net()
+    # a prior case awaiting a broker reply, keyed by mail_thread_id
+    case = cases.create_case(c, agent_org_id="a1", customer_org_id="c1", origin="customer",
+                             status="AWAITING_BROKER", mail_thread_id="T1", id="pc1")
+    out = router.ingest_broker_email(
+        c, eml="LTL-mail-2/FFBA BOL# 60112079078.eml", to_mailbox="ltlwest@priority1.com",
+        thread_id="T1", llm=FakeLlmClient())
+    assert out.id == "pc1"
+    assert out.status == "PENDING_APPROVAL"  # fresh status (not the stale REPLY_DRAFTED)
+    statuses = [r["status"] for r in
+                c.execute("SELECT status FROM messages WHERE case_id='pc1' ORDER BY rowid")]
+    assert statuses == ["received", "pending_approval"]
+    # no NEW case was created — it matched the existing thread
+    assert c.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 1

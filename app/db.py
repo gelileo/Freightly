@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     action      TEXT NOT NULL,
     from_status TEXT,
     to_status   TEXT,
+    detail      TEXT,
     at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 """

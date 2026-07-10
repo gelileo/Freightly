@@ -528,3 +528,14 @@ actually used, and closed it as **won't-fix**. Reasoning:
 - 12 new tests; full suite green. EN doc `knowledge/concepts/app/case-workflow.md`.
 - Deferred: customer-facing ZH posting (needs engine summarize→ZH), broker-initiated customer
   attribution by BOL.
+
+## [2026-07-10] fix | case-core review findings (Slice 3)
+
+- CRITICAL fixed: approval actions (approve/reject) now validate the case transition BEFORE
+  mutating the message, and wrap both writes in one commit with rollback-on-error — a failed
+  action no longer silently flips a message to sent/posted with no audit.
+- Router: matched-thread branch returns a FRESH Case (was stale); new-case branch adds the
+  pending draft BEFORE transitioning to PENDING_APPROVAL.
+- edit_message now preserves the prior body in a new audit `detail` column.
+- Tests added: atomic-failed-approve regression, matched-thread reply path, edit-records-prior-body,
+  full lifecycle → CLOSED. Doc flags thread_id as caller-supplied (header derivation deferred).

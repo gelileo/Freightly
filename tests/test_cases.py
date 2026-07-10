@@ -68,3 +68,36 @@ def test_edit_and_reject():
     cases.reject_message(c, "m1", "u_agent")
     assert cases.get_message(c, "m1").status == "draft"
     assert cases.get_case(c, "case1").status == "DRAFTING"
+
+
+def test_failed_approve_is_atomic():
+    # Regression: a failed approval must NOT flip the message to 'sent' or write audit.
+    c = _c()
+    # case already past PENDING_APPROVAL, but a stray pending message exists
+    cases.create_case(c, agent_org_id="a1", customer_org_id="c1", origin="customer",
+                       status="SENT_TO_BROKER", id="case1")
+    cases.add_message(c, case_id="case1", party="agent", channel="email", body="x",
+                      status="pending_approval", id="m1")
+    with pytest.raises(ValueError):
+        cases.approve_message(c, "m1", "u_agent")  # SENT_TO_BROKER -> SENT_TO_BROKER illegal
+    assert cases.get_message(c, "m1").status == "pending_approval"  # unchanged
+    assert not any(a.action.startswith("approve_message")
+                   for a in cases.audit_trail(c, "case1"))
+
+
+def test_edit_records_prior_body():
+    c = _c(); _new_case(c)
+    cases.transition(c, "case1", "DRAFTING", "system")
+    cases.transition(c, "case1", "PENDING_APPROVAL", "system")
+    cases.add_message(c, case_id="case1", party="agent", channel="email", body="original",
+                      status="pending_approval", id="m1")
+    cases.edit_message(c, "m1", "revised", "u_agent")
+    edit = [a for a in cases.audit_trail(c, "case1") if a.action == "edit_message"][0]
+    assert "original" in (edit.detail or "")
+
+
+def test_full_lifecycle_to_closed():
+    c = _c(); _new_case(c)
+    for to in ("DRAFTING", "PENDING_APPROVAL", "POSTED_TO_CUSTOMER", "RESOLVED", "CLOSED"):
+        cases.transition(c, "case1", to, "system")
+    assert cases.get_case(c, "case1").status == "CLOSED"

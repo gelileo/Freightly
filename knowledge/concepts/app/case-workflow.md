@@ -56,13 +56,24 @@ Approving a non-pending message raises.
   `skip` → return None, create nothing; matches an existing case by `mail_thread_id` → append
   a `received` broker message + draft a reply; else create a broker-origin (unattributed) case
   + draft. The owning agent is resolved from `to_mailbox` via `repo.agent_for_mailbox` (raises
-  if the mailbox is unknown).
+  if the mailbox is unknown). **Limitation:** `thread_id` is currently **caller-supplied**;
+  deriving it from the email's `Message-ID`/`References`/`In-Reply-To` headers is deferred
+  (`scripts.parse_eml.ParsedEmail` does not yet expose those headers). Until that lands, real
+  inbound integration must supply `thread_id`, or every broker email creates a new case.
 
 ## Relationship-scoped case access
 
 `app/access.user_may_access_case` — a member of the case's agent org always; a member of its
 customer org only when an ACTIVE engagement links them (revoking the engagement removes the
 customer's access but not the agent's). Isolation-tested.
+
+## Transactional safety & audit
+
+The approval actions (`approve_message`/`reject_message`) **validate the case transition
+before mutating the message**, then apply both writes under a single `commit()` with
+`rollback()` on any error — so a failed action leaves nothing changed (no half-applied message
+flip, no missing audit). `edit_message` preserves the prior body in the audit `detail` column.
+`audit_trail` is ordered by `rowid`.
 
 ## Scope note / deferred
 

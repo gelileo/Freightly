@@ -84,3 +84,4 @@ class AuditLog:
     action: str
     from_status: str | None
     to_status: str | None
+    detail: str | None = None

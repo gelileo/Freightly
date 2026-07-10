@@ -81,12 +81,11 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
         cases.add_message(conn, case_id=existing["id"], party="agent", channel="email",
                           lang="en", body=result.draft_body, status="pending_approval",
                           classification=_classification_json(result))
-        # REPLY_DRAFTED -> PENDING_APPROVAL (or DRAFTING->... if it was mid-draft)
-        cur = cases.get_case(conn, existing["id"])
-        if cur.status == "REPLY_DRAFTED":
+        # REPLY_DRAFTED -> PENDING_APPROVAL (message added first, then transition)
+        if cases.get_case(conn, existing["id"]).status == "REPLY_DRAFTED":
             cases.transition(conn, existing["id"], "PENDING_APPROVAL", actor="system",
                              action="draft_ready")
-        return cur
+        return cases.get_case(conn, existing["id"])  # fresh status after any transition
 
     # new broker-initiated case (customer attribution deferred — starts unattributed)
     bol = parsed.bol[0] if parsed.bol else None
@@ -98,13 +97,14 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
     cases.add_message(conn, case_id=case.id, party="broker", channel="email", lang="en",
                       body=parsed.body, status="received")
     result = _draft_reply(parsed, llm)
-    cases.transition(conn, case.id, "PENDING_APPROVAL", actor="system", action="draft_ready")
+    # add the pending draft BEFORE advancing the case, so PENDING_APPROVAL never exists
+    # without a message to approve
     cases.add_message(conn, case_id=case.id, party="agent", channel="email", lang="en",
                       body=result.draft_body, status="pending_approval",
                       classification=_classification_json(result))
-    # record issue_type on the case from the draft classification
     conn.execute("UPDATE cases SET issue_type=? WHERE id=?", (result.issue, case.id))
     conn.commit()
+    cases.transition(conn, case.id, "PENDING_APPROVAL", actor="system", action="draft_ready")
     return cases.get_case(conn, case.id)
 
 
