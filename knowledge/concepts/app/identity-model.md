@@ -26,10 +26,17 @@ headless; Postgres is a later migration (swap `app/db.py`'s DDL/driver — the r
   `pending` (invite/request), `approve_engagement` → `active`, `revoke_engagement` → `revoked`.
   `UNIQUE(customer_org_id, agent_org_id)`. `create_engagement` **validates** the two orgs are
   of type customer and agent respectively (raises `ValueError` on role mismatch).
+  **Transition-guarded:** `approve_engagement` only fires from `pending` (a revoked
+  engagement cannot be silently reactivated); `revoke` is terminal. `revoked` is thus a dead
+  end for that pair (UNIQUE blocks a fresh re-invite) — **re-engagement after revoke is not
+  yet supported** and would need an explicit path (future work).
 - **Broker** — directory entry (not a user).
 - **BrokerAccount** — agent-org ↔ broker, with the connected `mailbox`. `UNIQUE(agent_org_id,
-  broker_id)`. `connect_broker_account` validates the org is an agent. `agent_for_mailbox()`
-  resolves which agent owns an inbound mailbox — the hook the Slice-3 inbound router uses.
+  broker_id)`. `connect_broker_account` validates the org is an agent. **`mailbox` is UNIQUE
+  across all broker accounts** (partial index, non-null) and `connect_broker_account` raises
+  `ValueError` if a mailbox is already claimed — it is the inbound router's tenant-routing key,
+  so it must map to exactly one agent org. `agent_for_mailbox()` resolves which agent owns an
+  inbound mailbox — the hook the Slice-3 inbound router uses.
 
 ## Relationship-scoped access (`app/access.py`) — the security boundary
 

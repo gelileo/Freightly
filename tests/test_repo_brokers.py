@@ -35,3 +35,14 @@ def test_customer_org_cannot_hold_broker_account():
     repo.create_broker(c, "Priority-1", id="b1")
     with pytest.raises(ValueError):
         repo.connect_broker_account(c, "c1", "b1", id="bad")  # c1 is a customer org
+
+
+def test_mailbox_unique_across_agents():
+    c = _setup()
+    repo.create_org(c, "Agent2", "agent", id="a2")
+    repo.create_broker(c, "Priority-1", id="b1")
+    repo.create_broker(c, "AAA", id="b2")
+    repo.connect_broker_account(c, "a1", "b1", mailbox="shared@x.com", id="ba1")
+    with pytest.raises(ValueError):  # a2 cannot claim a1's routing mailbox
+        repo.connect_broker_account(c, "a2", "b2", mailbox="shared@x.com", id="ba2")
+    assert repo.agent_for_mailbox(c, "shared@x.com") == "a1"

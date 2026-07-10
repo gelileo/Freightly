@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS broker_accounts (
     mailbox      TEXT,
     UNIQUE (agent_org_id, broker_id)
 );
+-- A mailbox is the inbound-router's tenant-routing key: it must map to exactly one agent.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_broker_accounts_mailbox
+    ON broker_accounts (mailbox) WHERE mailbox IS NOT NULL;
 """
 
 

@@ -66,17 +66,33 @@ def create_engagement(conn, customer_org_id, agent_org_id, id=None) -> Engagemen
                       agent_org_id=agent_org_id, status="pending")
 
 
-def _set_engagement_status(conn, engagement_id, status) -> None:
-    conn.execute("UPDATE engagements SET status=? WHERE id=?", (status, engagement_id))
-    conn.commit()
+def _engagement_status(conn, engagement_id) -> str | None:
+    row = conn.execute("SELECT status FROM engagements WHERE id=?", (engagement_id,)).fetchone()
+    return row["status"] if row else None
 
 
 def approve_engagement(conn, engagement_id) -> None:
-    _set_engagement_status(conn, engagement_id, "active")
+    """pending -> active. Guarded: a missing engagement or a non-pending status raises,
+    so a revoked relationship cannot be silently reactivated outside the invite/approve flow
+    (re-engagement after revoke is not supported yet — it would need an explicit path)."""
+    status = _engagement_status(conn, engagement_id)
+    if status is None:
+        raise ValueError(f"engagement {engagement_id!r} does not exist")
+    if status != "pending":
+        raise ValueError(f"cannot approve engagement in status {status!r} (must be 'pending')")
+    conn.execute("UPDATE engagements SET status='active' WHERE id=?", (engagement_id,))
+    conn.commit()
 
 
 def revoke_engagement(conn, engagement_id) -> None:
-    _set_engagement_status(conn, engagement_id, "revoked")
+    """pending|active -> revoked (terminal). Missing or already-revoked raises."""
+    status = _engagement_status(conn, engagement_id)
+    if status is None:
+        raise ValueError(f"engagement {engagement_id!r} does not exist")
+    if status not in ("pending", "active"):
+        raise ValueError(f"cannot revoke engagement in status {status!r}")
+    conn.execute("UPDATE engagements SET status='revoked' WHERE id=?", (engagement_id,))
+    conn.commit()
 
 
 def active_agents_for_customer(conn, customer_org_id) -> set[str]:
@@ -103,6 +119,10 @@ def create_broker(conn, name, id=None) -> Broker:
 def connect_broker_account(conn, agent_org_id, broker_id, mailbox=None, id=None) -> BrokerAccount:
     if _org_type(conn, agent_org_id) != "agent":
         raise ValueError(f"agent_org_id {agent_org_id!r} is not an agent org")
+    if mailbox is not None:
+        owner = agent_for_mailbox(conn, mailbox)
+        if owner is not None:
+            raise ValueError(f"mailbox {mailbox!r} is already claimed by agent org {owner!r}")
     aid = _id(id)
     conn.execute(
         "INSERT INTO broker_accounts (id, agent_org_id, broker_id, mailbox) "
