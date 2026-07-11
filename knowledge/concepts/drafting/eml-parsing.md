@@ -88,3 +88,15 @@ directory — `parse_eml()` does not branch on which directory a file came from.
 ## To do (implementation)
 
 - Output shape: `cases/<BOL>/thread.md` via `render_thread_md`; fixtures in `tests/`.
+
+## Parse from bytes + threading headers (2026-07-11)
+
+`parse_eml(path)` now delegates to `_from_message(msg)`; a sibling **`parse_eml_bytes(raw)`**
+parses raw RFC-822 bytes/str (the IMAP inbound poller has bytes, not a file path).
+`_from_message` normalizes line endings to `\n` so a path parse and a bytes parse of the same
+message yield identical bodies. `ParsedEmail` gained **`message_id`**, **`in_reply_to`**,
+**`references`** (default `""`), enabling **header-derived threading**: the inbound poller derives
+a case `thread_id` from the References root / In-Reply-To (= the `Message-ID` set on send). See
+`concepts/app/transport-and-config.md` (Inbound poller). `router.ingest_broker_email` accepts raw
+bytes (dispatches to `parse_eml_bytes`) and records the incoming `Message-ID` on the stored
+`received` broker message (`messages.mail_message_id`) for dedup + provenance.

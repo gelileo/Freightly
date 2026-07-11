@@ -220,3 +220,13 @@ article's history — see `knowledge/log.md` for the compile trail).
 - Git hooks and CI drift-check. (The folder is now a git repo — initialized during
   implementation — so these *could* be added later, but living-doc's hook/Action layer was
   intentionally not installed.)
+
+## Live mail loop (2026-07-11)
+
+The inbound→draft→approve→send loop now runs against the real shipper mailbox
+(`hs@justnanoinc.com`, Alibaba Enterprise Mail): the **IMAP poller** (`app/inbound.py`) pulls new
+broker replies (UID-watermarked, read-only — never touches the human mailbox's flags), matches
+them to the originating case by header-derived thread id, and produces an approval-gated ZH
+customer update; **`AlibabaSmtpTransport`** sends the agent-approved English broker email. Both
+verified live (login/read-only only); a real outbound send remains an explicitly-confirmed step.
+See `concepts/app/transport-and-config.md`.

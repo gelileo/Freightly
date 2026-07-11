@@ -737,3 +737,23 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   status→views built, affects += miniprogram/**; index.md code-module row.
 - Spec/plan: docs/superpowers/{specs,plans}/2026-07-11-wechat-miniprogram-views*.
 - Deferred (unchanged): 小程序码 image gen, Subscription-Message push, payments, phone capture.
+
+## 2026-07-11 — Alibaba mail transport (SMTP send + IMAP inbound poller)
+- New live mail provider for hs@justnanoinc.com (Alibaba Enterprise Mail), SMTP/IMAP + 16-digit
+  third-party client password (stdlib, zero deps). Verified live: smtp.qiye.aliyun.com:465 login,
+  imap.qiye.aliyun.com:993 read-only login.
+- `app/transport.py`: `AlibabaSmtpTransport` (SMTP-SSL, from-guard, Message-ID/In-Reply-To
+  threading, injectable smtp_factory). `app/config.make_transport` precedence Alibaba→Gmail→Fake;
+  new `make_imap_config`.
+- `app/inbound.py`: `poll_once` (UID high-water mark in new `imap_state` table, read-only +
+  BODY.PEEK[] so human mailbox flags are never touched, first-run seeds past the 1655-unread
+  backlog, idempotent by Message-ID), `ImapClient`, `run_poller`, `python -m app.inbound` CLI.
+- `scripts/parse_eml.py`: `parse_eml_bytes` + `_from_message` + ParsedEmail message_id/in_reply_to/
+  references (header-derived threading). `router.ingest_broker_email` accepts raw bytes + stores
+  incoming Message-ID.
+- Articles: transport-and-config.md (Alibaba adapter, precedence, IMAP poller), eml-parsing.md
+  (parse-from-bytes + headers), platform-architecture.md (live mail loop), index.md.
+- Safety: no test sends/modifies mail; hermetic FakeSmtp/FakeImap; guarded live tests login/read
+  only. Spec/plan: docs/superpowers/{specs,plans}/2026-07-11-alibaba-mail-transport*.
+- NOTE: caught + fixed a .env corruption mid-task (a `>>` append concatenated SMTP_ADDRESS onto
+  the password line); repaired and re-verified SMTP login.
