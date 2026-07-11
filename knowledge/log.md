@@ -687,3 +687,24 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - VERIFIED LIVE (real Gemini): out-of-route broker email → faithful ZH summary (kept address +
   $55.56 fee) → agent-approved → shown in the customer app (browser-confirmed). 97 passed, 1 skipped.
 - Docs: knowledge/concepts/drafting/summarize.md (+ .zh); customer-web deferred note → built.
+
+## 2026-07-11 — Slice 8 review fix: server-side customer message filtering
+- Review (sonnet) flagged: "customer only sees approved ZH" was frontend-only; GET /cases
+  returned raw internal English broker mail to any customer caller.
+- Fix: `app/api._get_case`/`_create_case` now compute an `agent_view` role check; `_messages`
+  withholds all but `channel=app, lang=zh, status=posted` from customer-side callers. The API
+  never emits internal English drafts / received broker mail to the customer.
+- Added guarded live-Gemini `summarize` test + server-side-filter regression test.
+- summarize.md/.zh + router docstring corrected to state server-side enforcement.
+- Merged feat/summarize-zh → main (--no-ff, aa7908b). 98 passed, 2 skipped.
+
+## 2026-07-11 — New article: WeChat Mini Program frontend + auth (thin, reference)
+- Added `concepts/app/wechat-miniprogram.md` (+ `.zh`): captures the Mini Program as the
+  future customer frontend BEFORE building it — dual-thread (render/logic + WeixinJSBridge)
+  architecture, ecosystem (accounts/review/distribution), networking allowlist constraint
+  (collides with US data residency), Subscription Messages for push, and the load-bearing
+  `wx.login → code2Session → openid/unionid` auth flow that fills the deferred "real WeChat
+  login is a gateway concern" (api.md). status=thin, load_bearing=true (auth).
+- Indexed under "App backend"; added a row to CLAUDE.md article-mapping table.
+- Capture-first: documents a not-yet-built frontend so the auth adapter is designed against
+  reality; no code changed.

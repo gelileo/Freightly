@@ -74,6 +74,7 @@ These thoughts mean STOP and audit:
 | Any file under `templates/` | `concepts/drafting/template-system.md` |
 | Parties, roles, or freight terminology | `concepts/freight/parties-and-roles.md` |
 | How issue×response maps to a template/draft | `connections/issue-to-template-flow.md` |
+| The WeChat Mini Program frontend or WeChat login/auth adapter | `concepts/app/wechat-miniprogram.md` (+ `.zh`) |
 
 ### When you encounter something without a matching article
 

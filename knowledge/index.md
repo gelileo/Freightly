@@ -38,6 +38,8 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | [transport-and-config](concepts/app/transport-and-config.md) | MailTransport port + Fake/Gmail, send-on-approval + thread continuity, Gemini/Gmail config factory (Slice 5) | 2026-07-10 |
 | [agent-console](concepts/app/agent-console.md) | Dependency-free HTML+JS agent console (thin API client), served by stdlib server (Slice 6) | 2026-07-11 |
 | [customer-web](concepts/app/customer-web.md) | Customer web + schema-driven intake form engine (issue-types/engagements endpoints, dynamic forms) (Slice 7) | 2026-07-11 |
+| [wechat-miniprogram](concepts/app/wechat-miniprogram.md) | **Reference (not built):** WeChat Mini Program as the customer frontend — dual-thread architecture, ecosystem/review/networking constraints, and exactly how `wx.login`→`code2Session`→openid/unionid auth works (fills the deferred gateway concern) | 2026-07-11 |
+| [wechat-miniprogram.zh](concepts/app/wechat-miniprogram.zh.md) | 中文版:微信小程序作为客户前端——双线程架构、生态/审核/网络约束,及 `wx.login`→`code2Session`→openid/unionid 鉴权全流程 | 2026-07-11 |
 
 ## Code modules (governed by the articles above, not separately indexed)
 
