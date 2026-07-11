@@ -21,6 +21,11 @@ class LlmClient(Protocol):
     def generate(self, *, system: str, template: str, facts: dict[str, str],
                  source_text: str, target_lang: str) -> LlmDraft: ...
 
+    def summarize(self, *, text: str, target_lang: str, context: str = "") -> str:
+        """Summarize `text` into a short, faithful message in `target_lang` (used to relay a
+        broker reply to the customer). Must not invent facts."""
+        ...
+
 
 class FakeLlmClient:
     """Deterministic stub: substitute {slot} from facts; unknown slots → [[MISSING: slot]].
@@ -42,6 +47,10 @@ class FakeLlmClient:
 
         body = re.sub(r"\{(\w+)\}", repl, template)
         return LlmDraft(lang=target_lang, body=body, filled_slots=filled, missing=missing)
+
+    def summarize(self, *, text: str, target_lang: str, context: str = "") -> str:
+        first = next((ln.strip() for ln in (text or "").splitlines() if ln.strip()), "")
+        return f"[summary->{target_lang}] {first[:120]}"
 
 
 class GeminiLlmClient:
@@ -74,3 +83,14 @@ class GeminiLlmClient:
         from engine.llm import LlmDraft
         return LlmDraft(lang=data.get("lang", target_lang), body=data.get("body", ""),
                         filled_slots=data.get("filled_slots", {}), missing=data.get("missing", []))
+
+    def summarize(self, *, text, target_lang, context=""):
+        prompt = (
+            f"Summarize the following freight broker email reply into a short, clear message in "
+            f"{target_lang} for the end customer. Be faithful — do NOT invent facts, dates, or "
+            f"numbers not present in the text. Output only the message, no preamble.\n"
+            + (f"Context: {context}\n" if context else "")
+            + f"\nBroker reply:\n{text}"
+        )
+        resp = self._client.models.generate_content(model=self.MODEL, contents=prompt)
+        return (resp.text or "").strip()

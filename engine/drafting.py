@@ -44,6 +44,12 @@ class DraftResult:
     warnings: list[str] = field(default_factory=list)
 
 
+def summarize_for_customer(broker_text: str, llm: LlmClient, target_lang: str = "zh") -> str:
+    """Relay a broker's reply to the customer as a short, faithful message (default Chinese)."""
+    return llm.summarize(text=broker_text, target_lang=target_lang,
+                         context="Relay the broker/carrier's answer to the shipping customer.")
+
+
 def draft(req: DraftRequest, llm: LlmClient) -> DraftResult:
     t = triage(req.body, req.sender)
     if t == "skip":

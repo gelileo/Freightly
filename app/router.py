@@ -19,7 +19,7 @@ from scripts.parse_eml import parse_eml
 from scripts.triage import triage
 from app import repo, cases, forms
 from app.models import Case
-from engine.drafting import DraftRequest, draft as engine_draft
+from engine.drafting import DraftRequest, draft as engine_draft, summarize_for_customer
 
 
 def _classification_json(result) -> str:
@@ -97,10 +97,12 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
         if existing["status"] == "AWAITING_BROKER":
             cases.transition(conn, existing["id"], "REPLY_DRAFTED", actor="system",
                              action="broker_reply_received")
-        result = _draft_reply(parsed, llm)
-        cases.add_message(conn, case_id=existing["id"], party="agent", channel="email",
-                          lang="en", body=result.draft_body, status="pending_approval",
-                          classification=_classification_json(result))
+        # Relay the broker's reply to the customer as a Chinese update (approval-gated: the
+        # agent approves this app-channel message → POSTED_TO_CUSTOMER → the customer sees it).
+        summary = summarize_for_customer(parsed.body, llm)
+        cases.add_message(conn, case_id=existing["id"], party="agent", channel="app",
+                          lang="zh", body=summary, status="pending_approval",
+                          classification=_classification_json_from_triage(parsed))
         # REPLY_DRAFTED -> PENDING_APPROVAL (message added first, then transition)
         if cases.get_case(conn, existing["id"]).status == "REPLY_DRAFTED":
             cases.transition(conn, existing["id"], "PENDING_APPROVAL", actor="system",

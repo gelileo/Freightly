@@ -94,3 +94,20 @@ def test_ingest_matched_thread_appends_reply():
     assert statuses == ["received", "pending_approval"]
     # no NEW case was created — it matched the existing thread
     assert c.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 1
+
+
+def test_broker_reply_relayed_to_customer_as_zh():
+    c = _net()
+    cases.create_case(c, agent_org_id="a1", customer_org_id="c1", origin="customer",
+                      status="AWAITING_BROKER", mail_thread_id="T1", id="pc1")
+    out = router.ingest_broker_email(
+        c, eml="LTL-mail-2/FFBA BOL# 60112079078.eml", to_mailbox="ltlwest@priority1.com",
+        thread_id="T1", llm=FakeLlmClient())
+    assert out.status == "PENDING_APPROVAL"
+    # the pending message is a Chinese, app-channel customer update (the relayed summary)
+    m = c.execute("SELECT id, channel, lang, body FROM messages "
+                  "WHERE case_id='pc1' AND status='pending_approval'").fetchone()
+    assert m["channel"] == "app" and m["lang"] == "zh" and m["body"].startswith("[summary->zh]")
+    # approving the app-channel message posts it to the customer
+    cases.approve_message(c, m["id"], "op")
+    assert cases.get_case(c, "pc1").status == "POSTED_TO_CUSTOMER"
