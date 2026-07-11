@@ -6,3 +6,4 @@ cases/
 .env
 .env.*
 .venv/
+.playwright-mcp/
