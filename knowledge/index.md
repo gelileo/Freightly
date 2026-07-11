@@ -35,6 +35,7 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | [headless-backend](concepts/app/headless-backend.md) | End-to-end headless loop overview + built/deferred | 2026-07-10 |
 | [api](concepts/app/api.md) | JSON HTTP API (dispatch + http.server shell), auth boundary, endpoints (Slice 4) | 2026-07-10 |
 | [transport-and-config](concepts/app/transport-and-config.md) | MailTransport port + Fake/Gmail, send-on-approval + thread continuity, Gemini/Gmail config factory (Slice 5) | 2026-07-10 |
+| [agent-console](concepts/app/agent-console.md) | Dependency-free HTML+JS agent console (thin API client), served by stdlib server (Slice 6) | 2026-07-11 |
 
 ## Code modules (governed by the articles above, not separately indexed)
 
@@ -44,6 +45,7 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | `app/cases.py` (state machine, audit, approval), `app/router.py` (intake + inbound) | case-workflow.md |
 | `app/api.py` (`dispatch`), `app/server.py` (http.server shell) | api.md, transport-and-config.md |
 | `app/transport.py` (MailTransport, FakeTransport, GmailTransport), `app/config.py` (make_llm/make_transport) | transport-and-config.md |
+| `web/agent/index.html` (agent console), `app/server.py` static-serve route | agent-console.md |
 | `scripts/parse_eml.py` | eml-parsing.md |
 | `scripts/corpus.py` (`list_corpus`, `merged_best` — merges `LTL-mail/` + `LTL-mail-2/`) | eml-parsing.md, platform-architecture.md |
 | `scripts/corpus_report.py` (`classify_issue`, `corpus_report`) | issue-taxonomy.md |

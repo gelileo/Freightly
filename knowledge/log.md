@@ -627,3 +627,24 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   facts["broker_contact"] (future broker-contact resolution); default "team" for now.
 - Verified live: same input now greets "Hi team,". +2 tests. 87 passed, 1 skipped.
 - (drafting-engine.zh.md not updated — headless-phase EN-only per directive.)
+
+## [2026-07-11] compile | agent console (frontend Slice 6)
+
+- First frontend: `web/agent/index.html` — dependency-free self-contained HTML + vanilla JS
+  (bilingual), a thin client over the JSON API (login via X-User-Id, case list/detail, editable
+  pending draft, approve/edit/reject, audit). `app/server.py` serves it at GET / (favicon→204;
+  other paths → JSON dispatch). All rules stay server-side; data HTML-escaped (XSS-safe).
+- VERIFIED in a real browser (Playwright): op logs in → opens seeded case → Approve & send →
+  message 'sent', case → AWAITING_BROKER in the UI. + served-HTML smoke (tests/test_console.py).
+  88 passed, 1 skipped. Dual-language doc: knowledge/concepts/app/agent-console.md (+ .zh.md).
+- Next frontends (customer WeChat Mini Program + responsive web) need their own toolchains.
+
+## [2026-07-11] fix | agent-console review findings (XSS hardening + classification surface)
+
+- esc() now escapes quotes too; applied to all attribute/JS-string interpolations (onclick IDs)
+  — closes a latent stored-XSS pattern (inert today since IDs are uuids).
+- Surfaced the pending draft's classification (triage/issue/template) + a highlighted Missing
+  list + warnings panel (from message.classification) — the plan's requirement; removed the dead
+  markMissing() (a textarea can't render HTML). Browser-verified the panel renders.
+- Empty-draft guard: approve/edit abort with "draft is empty" instead of sending a blank email.
+- 88 passed, 1 skipped.

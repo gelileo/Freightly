@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Console · 代理控制台</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font: 14px/1.5 -apple-system, "Segoe UI", "PingFang SC", Roboto, sans-serif;
+         margin: 0; color: #1a2230; background: #f5f7fa; }
+  header { background: #1f2937; color: #fff; padding: 10px 16px; display: flex; gap: 10px;
+           align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; font-weight: 600; }
+  header input { padding: 5px 8px; border-radius: 6px; border: 1px solid #4b5563; }
+  button { cursor: pointer; border: 1px solid #cbd5e1; background: #fff; padding: 5px 10px;
+           border-radius: 6px; font-size: 13px; }
+  button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+  button.warn { background: #b91c1c; color: #fff; border-color: #b91c1c; }
+  button:disabled { opacity: .5; cursor: default; }
+  .layout { display: grid; grid-template-columns: 340px 1fr; gap: 12px; padding: 12px;
+            align-items: start; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+  .caserow { padding: 8px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .caserow:hover { background: #f1f5f9; }
+  .caserow.sel { background: #eff6ff; border-color: #bfdbfe; }
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px;
+          background: #e5e7eb; color: #374151; }
+  .pill.await { background: #fef3c7; color: #92400e; }
+  .pill.sent { background: #dcfce7; color: #166534; }
+  .msg { border-left: 3px solid #e5e7eb; padding: 6px 10px; margin: 8px 0; }
+  .msg.broker { border-color: #f59e0b; } .msg.agent { border-color: #2563eb; }
+  .msg pre { white-space: pre-wrap; margin: 4px 0 0; font-family: inherit; }
+  textarea { width: 100%; min-height: 160px; font: 13px/1.5 ui-monospace, monospace;
+             padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; }
+  .missing { color: #b91c1c; font-weight: 600; }
+  .muted { color: #6b7280; font-size: 12px; }
+  .err { color: #b91c1c; margin: 6px 0; min-height: 18px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent Console · 代理控制台</h1>
+  <label class="row">用户 / User ID <input id="uid" placeholder="e.g. op"></label>
+  <button class="primary" onclick="saveUidAndLoad()">登录并加载 / Log in & load</button>
+  <span id="who" class="muted"></span>
+</header>
+
+<div class="layout">
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <strong>案件 / Cases</strong><button onclick="loadCases()">刷新 / Refresh</button>
+    </div>
+    <div id="cases"></div>
+  </div>
+  <div class="card">
+    <div id="detail"><p class="muted">选择一个案件。 Select a case.</p></div>
+  </div>
+</div>
+
+<script>
+const API = "";                       // same origin
+let UID = localStorage.getItem("uid") || "";
+let CURRENT = null;
+
+function headers() { return UID ? { "X-User-Id": UID } : {}; }
+
+async function api(method, path, body) {
+  const opt = { method, headers: { ...headers() } };
+  if (body !== undefined) { opt.headers["Content-Type"] = "application/json";
+                            opt.body = JSON.stringify(body); }
+  const r = await fetch(API + path, opt);
+  let data = {}; try { data = await r.json(); } catch (e) {}
+  return { status: r.status, data };
+}
+
+function esc(s) {   // escapes text AND attribute/JS-string contexts (quotes included)
+  return (s ?? "").replace(/[&<>"']/g,
+    c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+function statusPill(st) {
+  const cls = st === "AWAITING_BROKER" ? "await" : st === "SENT_TO_BROKER" ? "sent" : "";
+  return `<span class="pill ${cls}">${esc(st)}</span>`;
+}
+
+function saveUidAndLoad() {
+  UID = document.getElementById("uid").value.trim();
+  localStorage.setItem("uid", UID);
+  document.getElementById("who").textContent = UID ? ("as " + UID) : "";
+  loadCases();
+}
+
+async function loadCases() {
+  const el = document.getElementById("cases");
+  if (!UID) { el.innerHTML = '<p class="err">请先登录 / Log in first</p>'; return; }
+  const { status, data } = await api("GET", "/cases");
+  if (status !== 200) { el.innerHTML = `<p class="err">${status} ${esc(data.error||"")}</p>`; return; }
+  if (!data.cases.length) { el.innerHTML = '<p class="muted">无案件 / No cases</p>'; return; }
+  el.innerHTML = data.cases.map(c => `
+    <div class="caserow ${CURRENT===c.id?'sel':''}" onclick="openCase('${esc(c.id)}')">
+      <div class="row" style="justify-content:space-between">
+        <strong>${esc(c.shipment_bol||"(no BOL)")}</strong> ${statusPill(c.status)}
+      </div>
+      <div class="muted">${esc(c.issue_type||"?")} · ${esc(c.origin)}</div>
+    </div>`).join("");
+}
+
+async function openCase(id) {
+  CURRENT = id; loadCases();
+  const d = document.getElementById("detail");
+  const { status, data } = await api("GET", "/cases/" + id);
+  if (status !== 200) { d.innerHTML = `<p class="err">${status} ${esc(data.error||"")}</p>`; return; }
+  const c = data.case;
+  const pending = data.messages.find(m => m.status === "pending_approval");
+  let clsPanel = "";
+  if (pending) {
+    let cls = {}; try { cls = JSON.parse(pending.classification || "{}"); } catch (e) {}
+    const miss = (cls.missing || []).map(x => `<span class="missing">${esc(x)}</span>`).join(", ");
+    const warns = (cls.warnings || []).map(x => `<div class="missing">⚠ ${esc(x)}</div>`).join("");
+    clsPanel =
+      `<div class="muted">分类 / Classification: triage=${esc(cls.triage||"?")} · issue=${esc(cls.issue||"?")} · template=${esc(cls.template||"?")}</div>`
+      + (miss ? `<div>待补 / Missing: ${miss}</div>` : "")
+      + warns;
+  }
+  const thread = data.messages.map(m => `
+    <div class="msg ${esc(m.party)}">
+      <div class="muted">${esc(m.party)} · ${esc(m.channel)} · ${esc(m.lang||"")} · ${esc(m.status)}</div>
+      <pre>${esc(m.body)}</pre>
+    </div>`).join("");
+  d.innerHTML = `
+    <div class="row" style="justify-content:space-between">
+      <h3 style="margin:0">BOL ${esc(c.shipment_bol||"—")} · ${esc(c.issue_type||"?")}</h3>
+      ${statusPill(c.status)}
+    </div>
+    <div class="err" id="err"></div>
+    ${pending ? `
+      <p><strong>待审草稿 / Pending draft</strong> <span class="muted">(edit then approve)</span></p>
+      ${clsPanel}
+      <textarea id="draft">${esc(pending.body)}</textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="primary" onclick="act('${esc(id)}','${esc(pending.id)}','approve')">批准并发送 / Approve & send</button>
+        <button onclick="act('${esc(id)}','${esc(pending.id)}','edit')">保存编辑 / Save edit</button>
+        <button class="warn" onclick="act('${esc(id)}','${esc(pending.id)}','reject')">驳回 / Reject</button>
+      </div>` : '<p class="muted">无待审草稿 / No pending draft</p>'}
+    <p style="margin-top:14px"><strong>线程 / Thread</strong></p>${thread}
+    <details style="margin-top:10px"><summary class="muted">审计 / Audit</summary><div id="audit"></div></details>`;
+  loadAudit(id);
+}
+
+async function loadAudit(id) {
+  const { status, data } = await api("GET", "/cases/" + id + "/audit");
+  const el = document.getElementById("audit"); if (!el) return;
+  el.innerHTML = status === 200
+    ? data.audit.map(a => `<div class="muted">${esc(a.action)}: ${esc(a.from_status)}→${esc(a.to_status)} (${esc(a.actor)})</div>`).join("")
+    : `<span class="err">${status}</span>`;
+}
+
+async function act(caseId, msgId, action) {
+  const err = document.getElementById("err"); err.textContent = "";
+  let body;
+  if (action === "edit" || action === "approve") {
+    // send any edits first for approve too, so the sent text matches what the operator sees
+    const draft = document.getElementById("draft").value;
+    if (!draft.trim()) { err.textContent = "草稿为空 / draft is empty"; return; }
+    if (action === "edit") body = { body: draft };
+    else { const e = await api("POST", `/cases/${caseId}/messages/${msgId}/edit`, { body: draft });
+           if (e.status !== 200) { err.textContent = `${e.status} ${e.data.error||""}`; return; } }
+  }
+  const { status, data } = await api("POST", `/cases/${caseId}/messages/${msgId}/${action}`, body);
+  if (status !== 200) { err.textContent = `${status} ${data.error || ""}`; return; }
+  openCase(caseId);
+}
+
+document.getElementById("uid").value = UID;
+if (UID) { document.getElementById("who").textContent = "as " + UID; loadCases(); }
+</script>
+</body>
+</html>
