@@ -27,6 +27,18 @@ def test_open_customer_case_produces_pending_draft():
     assert msgs[0]["status"] == "pending_approval" and msgs[0]["channel"] == "email"
 
 
+def test_open_customer_case_honors_issue_type_and_keeps_bol():
+    c = _net()
+    case = router.open_customer_case(
+        c, engagement_id="e1", broker_account_id="ba1", bol="60114839031", pro=None,
+        issue_type="delivery-window", wechat_text="收件人要求直接送达，不用预约",
+        llm=FakeLlmClient())
+    assert case.issue_type == "delivery-window"
+    body = c.execute("SELECT body FROM messages WHERE case_id=?", (case.id,)).fetchone()[0]
+    # the declared type drives the template, and the trusted BOL is filled (not [[MISSING]])
+    assert "60114839031" in body and "[[MISSING: BOL]]" not in body
+
+
 def test_open_customer_case_requires_active_engagement():
     c = _net()
     repo.create_org(c, "Cust2", "customer", id="c2")

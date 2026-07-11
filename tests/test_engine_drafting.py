@@ -20,6 +20,30 @@ def test_draft_billing_routes_to_billing_template():
     assert "60112079078" in r.draft_body
 
 
+def test_issue_override_selects_template():
+    # a customer-declared issue type is honored, not re-classified from the subject
+    r = draft(DraftRequest(body="anything", sender="customer", subject="whatever --- 1",
+                           facts={}, source_text="", issue_override="delivery-window"),
+              FakeLlmClient())
+    assert r.triage == "shipment"
+    assert r.issue == "delivery-window" and r.template_slug == "delivery-window"
+
+
+def test_shipper_signoff_injected_deterministically():
+    # {shipper_signoff} is a fixed block, never left as [[MISSING]] regardless of the LLM
+    r = draft(DraftRequest(body="please pick up", sender="ltlwest@priority1.com",
+                           subject="pickup --- 60114338678", facts={"BOL": "60114338678"},
+                           source_text="BOL 60114338678"), FakeLlmClient())
+    assert "Hughson Huang" in r.draft_body and "Justnano INC" in r.draft_body
+    assert "shipper_signoff" not in r.draft_body and "shipper_signoff" not in r.missing
+
+
+def test_issue_override_unknown_slug_falls_back_to_pickup():
+    r = draft(DraftRequest(body="x", sender="customer", subject="s", facts={}, source_text="",
+                           issue_override="other"), FakeLlmClient())
+    assert r.template_slug == "pickup"  # no templates/other.md → safe default
+
+
 def test_draft_shipment_classifies_issue():
     r = draft(DraftRequest(body="please pick up the shipment", sender="ltlwest@priority1.com",
                            subject="pickup --- 60114338678",
