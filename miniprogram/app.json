@@ -1,0 +1,17 @@
+{
+  "pages": [
+    "pages/login/index",
+    "pages/bind/index",
+    "pages/cases/index",
+    "pages/case/index",
+    "pages/new-case/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "货运客户",
+    "navigationBarBackgroundColor": "#1565c0",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f2f3f5"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

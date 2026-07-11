@@ -1,0 +1,48 @@
+<view class="wrap">
+  <view class="card">
+    <view class="title">新建货运问题</view>
+
+    <view class="field">
+      <label>代理 / Agent</label>
+      <picker mode="selector" range="{{engNames}}" value="{{engIdx}}" bindchange="onEng">
+        <view class="input">{{engNames[engIdx] || '请选择'}}</view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <label>承运商 / Broker</label>
+      <picker mode="selector" range="{{brokerNames}}" value="{{brokerIdx}}" bindchange="onBroker">
+        <view class="input">{{brokerNames[brokerIdx] || '请选择'}}</view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <label>问题类型 / Issue</label>
+      <picker mode="selector" range="{{issueNames}}" value="{{issueIdx}}" bindchange="onIssue">
+        <view class="input">{{issueNames[issueIdx] || '请选择'}}</view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <label>BOL</label>
+      <input class="input" value="{{bol}}" bindinput="onBol" placeholder="运单号 BOL" />
+    </view>
+
+    <view wx:for="{{fields}}" wx:key="name" class="field">
+      <label>{{item.label_zh}}{{item.required ? ' *' : ''}}</label>
+      <input class="input" data-name="{{item.name}}" bindinput="onField"
+             placeholder="{{item.label_en}}" />
+    </view>
+
+    <view class="field">
+      <label>补充说明</label>
+      <textarea class="input area" value="{{note}}" bindinput="onNote"
+                placeholder="用中文描述问题（可选）" />
+    </view>
+
+    <button class="btn btn-primary" bindtap="submit" disabled="{{busy}}">
+      {{busy ? '提交中…' : '提交'}}
+    </button>
+    <view wx:if="{{err}}" class="err">{{err}}</view>
+  </view>
+</view>

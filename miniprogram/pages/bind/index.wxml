@@ -1,0 +1,14 @@
+<view class="wrap">
+  <view class="card">
+    <view class="title">绑定账号</view>
+    <view class="muted">请输入代理提供的邀请码（或扫描邀请二维码进入）。</view>
+    <view class="field" style="margin-top:28rpx;">
+      <label>邀请码</label>
+      <input class="input" value="{{code}}" bindinput="onInput" placeholder="请输入邀请码" />
+    </view>
+    <button class="btn btn-primary" bindtap="bind" disabled="{{busy}}">
+      {{busy ? '绑定中…' : '绑定'}}
+    </button>
+    <view wx:if="{{err}}" class="err">{{err}}</view>
+  </view>
+</view>

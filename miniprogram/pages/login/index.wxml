@@ -1,0 +1,11 @@
+<view class="wrap login">
+  <view class="brand">
+    <view class="logo">货</view>
+    <view class="title">货运客户服务</view>
+    <view class="muted">登录后查看您的货运问题与最新进展</view>
+  </view>
+  <button class="btn btn-primary" bindtap="login" disabled="{{busy}}">
+    {{busy ? '登录中…' : '微信登录'}}
+  </button>
+  <view wx:if="{{err}}" class="err">{{err}}</view>
+</view>

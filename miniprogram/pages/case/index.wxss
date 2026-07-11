@@ -1,0 +1,2 @@
+.section-title { font-size: 28rpx; color: #555; margin: 24rpx 6rpx 12rpx; }
+.update .update-body { font-size: 30rpx; line-height: 1.6; white-space: pre-wrap; }

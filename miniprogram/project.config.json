@@ -1,0 +1,13 @@
+{
+  "description": "货运客户小程序 — set appid in WeChat DevTools before running.",
+  "appid": "YOUR_APPID",
+  "projectname": "freight-customer",
+  "miniprogramRoot": "./",
+  "compileType": "miniprogram",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "postcss": true,
+    "minified": false
+  }
+}
