@@ -29,6 +29,22 @@ def test_issue_override_selects_template():
     assert r.issue == "delivery-window" and r.template_slug == "delivery-window"
 
 
+def test_broker_contact_prefilled_default_team():
+    # {broker_contact} is filled server-side (default "team"), never left for the LLM to guess
+    r = draft(DraftRequest(body="老黄，请提货", sender="customer", subject="pickup --- 1",
+                           facts={"BOL": "1"}, source_text="BOL 1", issue_override="pickup"),
+              FakeLlmClient())
+    assert "Hi team," in r.draft_body
+    assert "broker_contact" not in r.draft_body and "broker_contact" not in r.missing
+
+
+def test_broker_contact_uses_resolved_name_when_known():
+    r = draft(DraftRequest(body="x", sender="customer", subject="pickup --- 1",
+                           facts={"BOL": "1", "broker_contact": "Laura"}, source_text="BOL 1",
+                           issue_override="pickup"), FakeLlmClient())
+    assert "Hi Laura," in r.draft_body
+
+
 def test_shipper_signoff_injected_deterministically():
     # {shipper_signoff} is a fixed block, never left as [[MISSING]] regardless of the LLM
     r = draft(DraftRequest(body="please pick up", sender="ltlwest@priority1.com",

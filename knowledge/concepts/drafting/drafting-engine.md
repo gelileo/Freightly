@@ -170,6 +170,16 @@ not present in `source_text` → warning), switch the substring/replace to **tok
 matching (a fabricated value that is a substring of a real one is currently accepted), and
 harden `GeminiLlmClient` JSON parsing. Tracked in `knowledge/log.md`.
 
+## Deterministic slots (not left to the LLM)
+
+To keep broker-facing drafts correct, two slots are filled deterministically by `draft()`, not
+by the model: **`{broker_contact}`** is pre-substituted into the template *before* the LLM call
+(resolved name, else `"team"`) so the model cannot hallucinate a recipient from the customer's
+text (e.g. the customer's informal address to the agent); **`{shipper_signoff}`** is injected
+from `engine.knowledge.SHIPPER_SIGNOFF` after the LLM. A `_SYSTEM` instruction also tells the
+model to keep the greeting and never invent a name or factual value. Both are single-agent
+defaults today; they become per-agent Knowledge-service overrides in the multi-tenant build.
+
 ## Reuses `scripts/` unchanged
 
 `engine/drafting.py` imports `scripts.triage.triage` and
