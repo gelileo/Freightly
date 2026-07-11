@@ -55,10 +55,22 @@ outbound→inbound loop with no new case.
 
 ## `app/config.py`
 
-- `make_llm()` → `GeminiLlmClient` when `GEMINI_API_KEY` is set, else `FakeLlmClient`.
-- `make_transport()` → `GmailTransport` (loading OAuth creds from `GMAIL_TOKEN_FILE`) when set,
-  else `FakeTransport`.
-- `server.serve()` builds both from config (still injectable for tests). Env unset → fakes.
+- `load_env()` — dependency-free `.env` loader (KEY=VALUE → `os.environ`, **real env wins** via
+  `setdefault`; `.env` is gitignored). Called by both factories so keys in `.env` are picked up.
+- `make_llm()` → `GeminiLlmClient` when `GEMINI_API_KEY` is set (incl. from `.env`), else `FakeLlmClient`.
+- `make_transport()` → `GmailTransport` (OAuth creds from `GMAIL_TOKEN_FILE`) when set, else `FakeTransport`.
+- `server.serve()` builds both from config (still injectable for tests). Env/`.env` unset → fakes.
+
+### Real Gemini — verified live (2026-07-10)
+
+`GeminiLlmClient.MODEL = "gemini-flash-latest"` (a stable alias; `gemini-2.5-flash` is retired
+for new accounts). Verified end-to-end with a real key from `.env`: a Chinese WeChat request
+(`请尽快安排提货…`) drafted to English (`"…please arrange for pickup as soon as possible."`),
+and `config.make_llm()` auto-selected `GeminiLlmClient`. `google-genai` is **not** a system dep
+(CI/tests use the fake); install it in a venv for real use:
+```
+python3 -m venv .venv && .venv/bin/pip install google-genai   # .venv is gitignored
+```
 
 ## Inbound (real Gmail) — how it connects
 

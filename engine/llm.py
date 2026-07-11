@@ -49,7 +49,7 @@ class GeminiLlmClient:
     and maps it to LlmDraft. Deterministic-first: factual slots in `facts` are passed through
     and the model is instructed to use ONLY those for facts (validator enforces anyway)."""
 
-    MODEL = "gemini-2.5-flash"
+    MODEL = "gemini-flash-latest"  # stable alias — survives model retirements (2.5-flash was retired for new accounts)
 
     def __init__(self, api_key: str | None = None):
         import os
