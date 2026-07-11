@@ -125,9 +125,11 @@ def _inbound(req, conn, llm, m, secret) -> Response:
         case = router.ingest_broker_email(
             conn, eml=b.get("eml"), to_mailbox=b.get("to_mailbox"),
             thread_id=b.get("thread_id"), llm=llm)
-    except (ValueError, KeyError, TypeError, OSError) as e:
-        # bad/missing eml path, unknown mailbox, unreadable file, etc. → client error
-        return Response(400, {"error": str(e)})
+    except (ValueError, KeyError, TypeError, OSError):
+        # bad/missing eml path, unknown mailbox, unreadable file, etc. → client error.
+        # Generic message: this is an external webhook; do not echo raw exception text
+        # (which can leak a filesystem path / internal detail).
+        return Response(400, {"error": "invalid inbound request"})
     if case is None:
         return Response(200, {"skipped": True})
     return Response(200, {"case_id": case.id})

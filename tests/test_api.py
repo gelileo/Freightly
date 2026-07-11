@@ -113,7 +113,3 @@ def test_malformed_requests_are_400_not_crashes():
     r = dispatch(Request(method="POST", path="/cases", user_id="uc", body=["not", "a", "dict"]),
                  conn=c, llm=LLM, webhook_secret=SECRET)
     assert r.status == 400
-
-
-# dispatch import for the non-dict-body test
-from app.api import dispatch  # noqa: E402
