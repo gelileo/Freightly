@@ -10,7 +10,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from app.api import Request, Response, dispatch
 
 
-def make_handler(conn_factory, llm, transport=None, webhook_secret=None):
+_FRONTEND_ROUTES = {"/", "/console", "/index.html"}
+
+
+def make_handler(conn_factory, llm, transport=None, webhook_secret=None, static_dir=None):
     """conn_factory() -> a fresh sqlite connection per request (sqlite connections are not
     shareable across threads; ThreadingHTTPServer serves each request on its own thread)."""
 
@@ -46,7 +49,24 @@ def make_handler(conn_factory, llm, transport=None, webhook_secret=None):
             self.wfile.write(payload)
 
         def do_GET(self):
+            path = self.path.split("?", 1)[0]
+            if path == "/favicon.ico":
+                self.send_response(204); self.end_headers(); return
+            if static_dir and path in _FRONTEND_ROUTES:
+                return self._serve_console()
             self._handle("GET")
+
+        def _serve_console(self):
+            from pathlib import Path
+            f = Path(static_dir) / "index.html"
+            if not f.exists():
+                return self._write(404, {"error": "console not found"})
+            data = f.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
 
         def do_POST(self):
             self._handle("POST")
@@ -58,10 +78,13 @@ def make_handler(conn_factory, llm, transport=None, webhook_secret=None):
 
 
 def serve(conn_factory, llm=None, transport=None, *, host="127.0.0.1", port=8000,
-          webhook_secret=None):
+          webhook_secret=None, static_dir=None):
     if llm is None or transport is None:
         from app import config
         llm = llm or config.make_llm()
         transport = transport or config.make_transport()
-    handler = make_handler(conn_factory, llm, transport, webhook_secret)
+    if static_dir is None:
+        from pathlib import Path
+        static_dir = str(Path(__file__).resolve().parent.parent / "web" / "agent")
+    handler = make_handler(conn_factory, llm, transport, webhook_secret, static_dir)
     ThreadingHTTPServer((host, port), handler).serve_forever()
