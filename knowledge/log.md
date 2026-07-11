@@ -565,3 +565,24 @@ actually used, and closed it as **won't-fix**. Reasoning:
   non-object JSON bodies with 400; `_inbound` catches TypeError/OSError (bad/missing/unreadable
   eml path) → 400; `server.py` wraps `dispatch` in try/except → controlled 500 (no stack leak,
   no dead thread). +1 regression test (test_malformed_requests_are_400_not_crashes). 73 passed.
+
+## [2026-07-10] compile | real Gemini + Gmail transport wiring (app Slice 5)
+
+- `app/transport.py`: MailTransport port + FakeTransport (tested) + guarded GmailTransport
+  (deferred google imports; RFC-822 + In-Reply-To/References threading).
+- Send-on-approval: `app/api._approve_and_maybe_send` sends a broker email via the transport
+  on approval, stamps `messages.mail_message_id` + `cases.mail_thread_id`, advances to
+  AWAITING_BROKER. Missing recipient/transport/illegal → 409, nothing sent. Thread continuity
+  proven: reply on that thread matches the same case.
+- Added `broker_accounts.broker_email` (broker's TO address; distinct from routing `mailbox`).
+- `app/config.py`: make_llm()/make_transport() select real Gemini/Gmail when GEMINI_API_KEY /
+  GMAIL_TOKEN_FILE set, else fakes; server.serve() builds from config. Env unset → fakes.
+- +7 tests; full suite 79 passed, 1 skipped. Doc: knowledge/concepts/app/transport-and-config.md.
+
+## [2026-07-10] fix | Slice 5 review fast-follows (send-path atomicity + logging)
+
+- Made send-on-approval bookkeeping atomic: send first (raise → nothing written), then
+  message→sent + SENT_TO_BROKER→AWAITING_BROKER + mail/thread stamps in ONE transaction w/
+  rollback (no more 3-commit stranding window). Guarded empty from_addr (→409). server.py logs
+  the traceback before a controlled 500. +1 regression test (send-failure-leaves-state-untouched).
+  80 passed, 1 skipped. (Deferred: retry/backoff, in_reply_to capture, real-creds Gmail test.)

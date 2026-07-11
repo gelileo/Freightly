@@ -46,6 +46,7 @@ class BrokerAccount:
     agent_org_id: str
     broker_id: str
     mailbox: str | None
+    broker_email: str | None = None
 
 
 @dataclass

@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS broker_accounts (
     id           TEXT PRIMARY KEY,
     agent_org_id TEXT NOT NULL REFERENCES orgs(id),
     broker_id    TEXT NOT NULL REFERENCES brokers(id),
-    mailbox      TEXT,
+    mailbox      TEXT,   -- agent's connected mailbox (inbound routing key / send FROM)
+    broker_email TEXT,   -- broker's address (send TO)
     UNIQUE (agent_org_id, broker_id)
 );
 -- A mailbox is the inbound-router's tenant-routing key: it must map to exactly one agent.

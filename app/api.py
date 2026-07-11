@@ -43,7 +43,7 @@ def _member_of(conn, user_id, org_id) -> bool:
 
 # --- handlers -------------------------------------------------------------------
 
-def _create_case(req, conn, llm, m, _secret) -> Response:
+def _create_case(req, conn, llm, transport, m, _secret) -> Response:
     b = req.body
     eng = conn.execute(
         "SELECT customer_org_id, agent_org_id FROM engagements WHERE id=?",
@@ -63,7 +63,7 @@ def _create_case(req, conn, llm, m, _secret) -> Response:
     return Response(201, {"case": asdict(case), "messages": _messages(conn, case.id)})
 
 
-def _get_case(req, conn, llm, m, _secret) -> Response:
+def _get_case(req, conn, llm, transport, m, _secret) -> Response:
     cid = m.group("cid")
     if cases.get_case(conn, cid) is None:
         return Response(404, {"error": "not found"})
@@ -73,7 +73,7 @@ def _get_case(req, conn, llm, m, _secret) -> Response:
                           "messages": _messages(conn, cid)})
 
 
-def _list_cases(req, conn, llm, m, _secret) -> Response:
+def _list_cases(req, conn, llm, transport, m, _secret) -> Response:
     out = []
     for r in conn.execute("SELECT id FROM cases ORDER BY rowid"):
         if user_may_access_case(conn, req.user_id, r["id"]):
@@ -81,7 +81,7 @@ def _list_cases(req, conn, llm, m, _secret) -> Response:
     return Response(200, {"cases": out})
 
 
-def _get_audit(req, conn, llm, m, _secret) -> Response:
+def _get_audit(req, conn, llm, transport, m, _secret) -> Response:
     cid = m.group("cid")
     if cases.get_case(conn, cid) is None:
         return Response(404, {"error": "not found"})
@@ -91,7 +91,7 @@ def _get_audit(req, conn, llm, m, _secret) -> Response:
 
 
 def _message_action(action):
-    def handler(req, conn, llm, m, _secret) -> Response:
+    def handler(req, conn, llm, transport, m, _secret) -> Response:
         cid, mid = m.group("cid"), m.group("mid")
         case = cases.get_case(conn, cid)
         if case is None:
@@ -105,10 +105,10 @@ def _message_action(action):
         try:
             if action == "edit":
                 cases.edit_message(conn, mid, req.body.get("body", ""), req.user_id)
-            elif action == "approve":
-                cases.approve_message(conn, mid, req.user_id)
-            else:  # reject
+            elif action == "reject":
                 cases.reject_message(conn, mid, req.user_id)
+            else:  # approve — for an email message this actually SENDS via the transport
+                _approve_and_maybe_send(conn, transport, case, msg, req.user_id)
         except ValueError as e:
             return Response(409, {"error": str(e)})
         return Response(200, {"message": asdict(cases.get_message(conn, mid)),
@@ -116,7 +116,50 @@ def _message_action(action):
     return handler
 
 
-def _inbound(req, conn, llm, m, secret) -> Response:
+def _approve_and_maybe_send(conn, transport, case, msg, actor) -> None:
+    """Approve a message. For an email (broker-facing) message this SENDS via the transport
+    BEFORE marking sent, then stamps the message's mail id and the case's thread id (so broker
+    replies thread back). A missing recipient/transport or illegal transition raises ValueError
+    (→ 409) and nothing is sent. This is the only outbound send path."""
+    if msg.channel != "email":
+        cases.approve_message(conn, msg.id, actor)  # app post — no transport
+        return
+    acct = repo.broker_account(conn, case.broker_account_id) if case.broker_account_id else None
+    to = acct.broker_email if acct else None
+    from_addr = acct.mailbox if acct else None
+    if not to:
+        raise ValueError("no broker recipient configured for this case")
+    if not from_addr:
+        raise ValueError("no sending mailbox configured for this case")
+    if transport is None:
+        raise ValueError("no mail transport configured")
+    if msg.status != "pending_approval":
+        raise ValueError(f"cannot approve message in status {msg.status!r}")
+    # Validate BOTH transitions before any network call, so a legal send commits fully.
+    cases._check_transition(case.status, "SENT_TO_BROKER")
+    cases._check_transition("SENT_TO_BROKER", "AWAITING_BROKER")
+    subject = f"{case.issue_type or 'Shipment'} --- {case.shipment_bol or ''}".strip()
+    # Network send first: if it raises, nothing below runs → message stays pending_approval.
+    ref = transport.send(from_addr=from_addr, to=to, subject=subject, body=msg.body,
+                         thread_id=case.mail_thread_id, in_reply_to=msg.in_reply_to)
+    # All post-send bookkeeping in ONE transaction (message sent + both transitions + thread
+    # stamp) so a crash can't strand the case at SENT_TO_BROKER with no thread id.
+    try:
+        conn.execute("UPDATE messages SET status='sent', mail_message_id=? WHERE id=?",
+                     (ref.message_id, msg.id))
+        cases._apply_transition(conn, case.id, case.status, "SENT_TO_BROKER", actor,
+                                "approve_message:sent")
+        cases._apply_transition(conn, case.id, "SENT_TO_BROKER", "AWAITING_BROKER", actor,
+                                "awaiting_broker_reply")
+        if not case.mail_thread_id:
+            conn.execute("UPDATE cases SET mail_thread_id=? WHERE id=?", (ref.thread_id, case.id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
+def _inbound(req, conn, llm, transport, m, secret) -> Response:
     given = req.headers.get("X-Webhook-Secret", "")
     if not secret or not hmac.compare_digest(str(given), str(secret)):
         return Response(401, {"error": "bad webhook secret"})
@@ -152,7 +195,7 @@ _ROUTES = [
 ]
 
 
-def dispatch(req: Request, *, conn, llm, webhook_secret=None) -> Response:
+def dispatch(req: Request, *, conn, llm, transport=None, webhook_secret=None) -> Response:
     path = req.path.split("?", 1)[0]
     for method, rx, handler, needs_user in _ROUTES:
         if method != req.method:
@@ -164,5 +207,5 @@ def dispatch(req: Request, *, conn, llm, webhook_secret=None) -> Response:
             return Response(401, {"error": "missing X-User-Id"})
         if not isinstance(req.body, dict):
             return Response(400, {"error": "request body must be a JSON object"})
-        return handler(req, conn, llm, m, webhook_secret)
+        return handler(req, conn, llm, transport, m, webhook_secret)
     return Response(404, {"error": "no such route"})

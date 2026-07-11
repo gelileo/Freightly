@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from app.api import Request, Response, dispatch
 
 
-def make_handler(conn_factory, llm, webhook_secret=None):
+def make_handler(conn_factory, llm, transport=None, webhook_secret=None):
     """conn_factory() -> a fresh sqlite connection per request (sqlite connections are not
     shareable across threads; ThreadingHTTPServer serves each request on its own thread)."""
 
@@ -27,8 +27,11 @@ def make_handler(conn_factory, llm, webhook_secret=None):
                           headers={k: v for k, v in self.headers.items()}, body=body)
             conn = conn_factory()
             try:
-                resp = dispatch(req, conn=conn, llm=llm, webhook_secret=webhook_secret)
+                resp = dispatch(req, conn=conn, llm=llm, transport=transport,
+                                webhook_secret=webhook_secret)
             except Exception:  # controlled 500 — never let the request thread die / leak a trace
+                import traceback
+                traceback.print_exc()  # log server-side (e.g. a real Gmail send failure)
                 resp = Response(500, {"error": "internal error"})
             finally:
                 conn.close()
@@ -54,6 +57,11 @@ def make_handler(conn_factory, llm, webhook_secret=None):
     return Handler
 
 
-def serve(conn_factory, llm, *, host="127.0.0.1", port=8000, webhook_secret=None):
-    server = ThreadingHTTPServer((host, port), make_handler(conn_factory, llm, webhook_secret))
-    server.serve_forever()
+def serve(conn_factory, llm=None, transport=None, *, host="127.0.0.1", port=8000,
+          webhook_secret=None):
+    if llm is None or transport is None:
+        from app import config
+        llm = llm or config.make_llm()
+        transport = transport or config.make_transport()
+    handler = make_handler(conn_factory, llm, transport, webhook_secret)
+    ThreadingHTTPServer((host, port), handler).serve_forever()
