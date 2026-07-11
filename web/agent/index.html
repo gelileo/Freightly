@@ -74,9 +74,9 @@ async function api(method, path, body) {
   return { status: r.status, data };
 }
 
-function esc(s) { return (s ?? "").replace(/[&<>]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;" }[c])); }
-function markMissing(s) {
-  return esc(s).replace(/\[\[MISSING:[^\]]*\]\]/g, m => `<span class="missing">${m}</span>`);
+function esc(s) {   // escapes text AND attribute/JS-string contexts (quotes included)
+  return (s ?? "").replace(/[&<>"']/g,
+    c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
 function statusPill(st) {
   const cls = st === "AWAITING_BROKER" ? "await" : st === "SENT_TO_BROKER" ? "sent" : "";
@@ -97,7 +97,7 @@ async function loadCases() {
   if (status !== 200) { el.innerHTML = `<p class="err">${status} ${esc(data.error||"")}</p>`; return; }
   if (!data.cases.length) { el.innerHTML = '<p class="muted">无案件 / No cases</p>'; return; }
   el.innerHTML = data.cases.map(c => `
-    <div class="caserow ${CURRENT===c.id?'sel':''}" onclick="openCase('${c.id}')">
+    <div class="caserow ${CURRENT===c.id?'sel':''}" onclick="openCase('${esc(c.id)}')">
       <div class="row" style="justify-content:space-between">
         <strong>${esc(c.shipment_bol||"(no BOL)")}</strong> ${statusPill(c.status)}
       </div>
@@ -112,6 +112,16 @@ async function openCase(id) {
   if (status !== 200) { d.innerHTML = `<p class="err">${status} ${esc(data.error||"")}</p>`; return; }
   const c = data.case;
   const pending = data.messages.find(m => m.status === "pending_approval");
+  let clsPanel = "";
+  if (pending) {
+    let cls = {}; try { cls = JSON.parse(pending.classification || "{}"); } catch (e) {}
+    const miss = (cls.missing || []).map(x => `<span class="missing">${esc(x)}</span>`).join(", ");
+    const warns = (cls.warnings || []).map(x => `<div class="missing">⚠ ${esc(x)}</div>`).join("");
+    clsPanel =
+      `<div class="muted">分类 / Classification: triage=${esc(cls.triage||"?")} · issue=${esc(cls.issue||"?")} · template=${esc(cls.template||"?")}</div>`
+      + (miss ? `<div>待补 / Missing: ${miss}</div>` : "")
+      + warns;
+  }
   const thread = data.messages.map(m => `
     <div class="msg ${esc(m.party)}">
       <div class="muted">${esc(m.party)} · ${esc(m.channel)} · ${esc(m.lang||"")} · ${esc(m.status)}</div>
@@ -125,11 +135,12 @@ async function openCase(id) {
     <div class="err" id="err"></div>
     ${pending ? `
       <p><strong>待审草稿 / Pending draft</strong> <span class="muted">(edit then approve)</span></p>
+      ${clsPanel}
       <textarea id="draft">${esc(pending.body)}</textarea>
       <div class="row" style="margin-top:8px">
-        <button class="primary" onclick="act('${id}','${pending.id}','approve')">批准并发送 / Approve & send</button>
-        <button onclick="act('${id}','${pending.id}','edit')">保存编辑 / Save edit</button>
-        <button class="warn" onclick="act('${id}','${pending.id}','reject')">驳回 / Reject</button>
+        <button class="primary" onclick="act('${esc(id)}','${esc(pending.id)}','approve')">批准并发送 / Approve & send</button>
+        <button onclick="act('${esc(id)}','${esc(pending.id)}','edit')">保存编辑 / Save edit</button>
+        <button class="warn" onclick="act('${esc(id)}','${esc(pending.id)}','reject')">驳回 / Reject</button>
       </div>` : '<p class="muted">无待审草稿 / No pending draft</p>'}
     <p style="margin-top:14px"><strong>线程 / Thread</strong></p>${thread}
     <details style="margin-top:10px"><summary class="muted">审计 / Audit</summary><div id="audit"></div></details>`;
@@ -150,6 +161,7 @@ async function act(caseId, msgId, action) {
   if (action === "edit" || action === "approve") {
     // send any edits first for approve too, so the sent text matches what the operator sees
     const draft = document.getElementById("draft").value;
+    if (!draft.trim()) { err.textContent = "草稿为空 / draft is empty"; return; }
     if (action === "edit") body = { body: draft };
     else { const e = await api("POST", `/cases/${caseId}/messages/${msgId}/edit`, { body: draft });
            if (e.status !== 200) { err.textContent = `${e.status} ${e.data.error||""}`; return; } }
