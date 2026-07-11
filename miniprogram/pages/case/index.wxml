@@ -2,7 +2,7 @@
   <view class="card">
     <view class="row">
       <view class="title" style="font-size:30rpx;">{{caseInfo.shipment_bol || '（无 BOL）'}}</view>
-      <span class="pill">{{statusZh}}</span>
+      <text class="pill">{{statusZh}}</text>
     </view>
     <view class="muted" style="margin-top:10rpx;">{{caseInfo.issue_type || '货运问题'}}</view>
   </view>

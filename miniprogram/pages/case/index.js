@@ -18,6 +18,6 @@ Page({
       const updates = (res.messages || []).filter(
         m => m.channel === 'app' && m.lang === 'zh' && m.status === 'posted')
       this.setData({ caseInfo: c, statusZh: STATUS_ZH[c.status] || c.status, updates })
-    }).catch(() => {})
+    }).catch(() => wx.showToast({ title: '加载失败，请重试', icon: 'none' }))
   }
 })

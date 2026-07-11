@@ -30,8 +30,14 @@
 
     <view wx:for="{{fields}}" wx:key="name" class="field">
       <label>{{item.label_zh}}{{item.required ? ' *' : ''}}</label>
-      <input class="input" data-name="{{item.name}}" bindinput="onField"
-             placeholder="{{item.label_en}}" />
+      <textarea wx:if="{{item.type === 'textarea'}}" class="input area"
+                data-name="{{item.name}}" bindinput="onField" placeholder="{{item.label_en}}" />
+      <picker wx:elif="{{item.type === 'date'}}" mode="date"
+              data-name="{{item.name}}" bindchange="onDate">
+        <view class="input">{{fieldValues[item.name] || '选择日期'}}</view>
+      </picker>
+      <input wx:else class="input" type="{{item.type === 'tel' ? 'number' : 'text'}}"
+             data-name="{{item.name}}" bindinput="onField" placeholder="{{item.label_en}}" />
     </view>
 
     <view class="field">

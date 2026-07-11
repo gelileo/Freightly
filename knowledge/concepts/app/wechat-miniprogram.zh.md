@@ -175,9 +175,11 @@ token);其余都是针对已存在 API 的视图重写。适配器要扩展的 `
   `GET /issue-types` → agent/broker/issue 选择 + schema 驱动动态字段 → `POST /cases {…, fields}`)。
 - **会话**(`utils/api.js`):附 `Authorization: Bearer <token>`;**401** 时清除已存 token 并
   `wx.reLaunch` 到 login。`baseUrl` 是 `app.js` 中单一配置常量(直连美国域名 MVP)。AppSecret 绝不入客户端。
-- **验证**:通过 Playwright 检查的浏览器原型(`prototype.html`)复现全部五屏(mock API)——
-  login → bind → cases → case → new-case,动态字段随 issue 切换。真实 API 由后端测试覆盖;
-  小程序本身只在微信内运行。
+- **验证**分两层:(1)Playwright 检查的浏览器原型(`prototype.html`)复现全部五屏(mock API)——
+  login → bind → cases → case → new-case,动态字段随 issue 切换——用于**布局/流程**;(2)对照微信
+  组件集与真实 API 契约的静态审查。原型是纯 HTML,**无法**捕获 WXML 特有问题(例如状态徽章必须用
+  `<text>` 而非 HTML `<span>`)——那是静态审查的职责。真实 API 由后端测试覆盖;小程序本身只在
+  微信/DevTools 内运行。
 
 ### DevTools 交接(如何运行)
 

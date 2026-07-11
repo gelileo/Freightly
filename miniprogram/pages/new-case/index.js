@@ -35,6 +35,7 @@ Page({
   onBol(e) { this.setData({ bol: e.detail.value }) },
   onNote(e) { this.setData({ note: e.detail.value }) },
   onField(e) { this.setData({ ['fieldValues.' + e.currentTarget.dataset.name]: e.detail.value }) },
+  onDate(e) { this.setData({ ['fieldValues.' + e.currentTarget.dataset.name]: e.detail.value }) },
   submit() {
     const e = this.data.engagements[this.data.engIdx]
     if (!e) { this.setData({ err: '请选择代理' }); return }

@@ -193,9 +193,13 @@ Native WXML/WXSS/JS (no build step, no dependencies), the third client of the sa
 - **Session** (`utils/api.js`): attaches `Authorization: Bearer <token>`; on **401** clears the
   stored token and `wx.reLaunch`es to login. `baseUrl` is a single config constant in `app.js`
   (the direct-to-US-domain MVP). The AppSecret never lives in the client.
-- **Verified** via a Playwright-checked browser prototype (`prototype.html`) reproducing all five
-  screens with a mock API — login → bind → cases → case → new-case, dynamic fields switching by
-  issue type. The real API is covered by the backend test suite; the MP itself runs only in WeChat.
+- **Verified** at two levels: (1) a Playwright-checked browser prototype (`prototype.html`)
+  reproducing all five screens with a mock API — login → bind → cases → case → new-case, dynamic
+  fields switching by issue type — for **layout/flow**; and (2) a static review against WeChat's
+  component set and the real API contract. The prototype is plain HTML, so it does **not** catch
+  WXML-specific issues (e.g. a status badge must be `<text>`, not HTML `<span>`) — those are the
+  static review's job. The real API is covered by the backend test suite; the MP itself runs only
+  in WeChat/DevTools.
 
 ### DevTools handoff (to run it)
 
