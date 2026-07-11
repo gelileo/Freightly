@@ -70,3 +70,43 @@ def test_login_bad_code_raises():
     c = _db()
     with pytest.raises(ValueError):
         auth.login_wechat(c, WX, "bad", now=NOW)
+
+
+def _org_with_user(c):
+    repo.create_org(c, "Acme", "customer", id="cust")
+    _, admin, _ = auth.login_wechat(c, WX, "admin", now=NOW)
+    return admin
+
+
+def test_create_and_bind_invite_grants_membership():
+    c = _db()
+    admin = _org_with_user(c)
+    code = auth.create_invite(c, customer_org_id="cust", role="member",
+                              created_by=admin.id, now=NOW)
+    _, alice, needs_bind = auth.login_wechat(c, WX, "alice", now=NOW)
+    assert needs_bind is True
+    mem = auth.bind_via_invite(c, user_id=alice.id, code=code, now=NOW)
+    assert mem.org_id == "cust" and mem.role == "member"
+    assert repo.is_member(c, alice.id, "cust")
+    # invite is now single-use / consumed
+    row = c.execute("SELECT consumed_by_user FROM invites WHERE code=?", (code,)).fetchone()
+    assert row["consumed_by_user"] == alice.id
+
+
+def test_bind_rejects_bad_expired_and_consumed():
+    c = _db()
+    admin = _org_with_user(c)
+    _, alice, _ = auth.login_wechat(c, WX, "alice", now=NOW)
+    with pytest.raises(ValueError):
+        auth.bind_via_invite(c, user_id=alice.id, code="nope", now=NOW)          # unknown
+    expired = auth.create_invite(c, customer_org_id="cust", role="member",
+                                 created_by=admin.id, now=NOW, ttl_days=1)
+    with pytest.raises(ValueError):
+        auth.bind_via_invite(c, user_id=alice.id, code=expired,
+                             now=NOW + timedelta(days=2))                          # expired
+    code = auth.create_invite(c, customer_org_id="cust", role="member",
+                              created_by=admin.id, now=NOW)
+    auth.bind_via_invite(c, user_id=alice.id, code=code, now=NOW)
+    _, bob, _ = auth.login_wechat(c, WX, "bob", now=NOW)
+    with pytest.raises(ValueError):
+        auth.bind_via_invite(c, user_id=bob.id, code=code, now=NOW)               # already used

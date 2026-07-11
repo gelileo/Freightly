@@ -64,3 +64,47 @@ def resolve_session(conn, token: str, *, now=None) -> str | None:
 def revoke_session(conn, token: str) -> None:
     conn.execute("UPDATE sessions SET revoked=1 WHERE token_hash=?", (_hash(token),))
     conn.commit()
+
+
+def create_invite(conn, *, customer_org_id: str, role: str, created_by: str,
+                  now=None, ttl_days: int = 7) -> str:
+    now = _now(now)
+    code = secrets.token_hex(4)
+    conn.execute(
+        "INSERT INTO invites (code, customer_org_id, role, created_by, created_at, expires_at)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (code, customer_org_id, role, created_by, now.isoformat(),
+         (now + timedelta(days=ttl_days)).isoformat()))
+    conn.commit()
+    return code
+
+
+def bind_via_invite(conn, *, user_id: str, code: str, now=None) -> Membership:
+    """Validate + consume a single-use invite and add the membership in ONE transaction.
+    Raises ValueError on any invalid / expired / already-consumed invite (caller -> 409)."""
+    now = _now(now)
+    row = conn.execute("SELECT * FROM invites WHERE code=?", (code,)).fetchone()
+    if row is None:
+        raise ValueError("invalid invite code")
+    if row["consumed_by_user"] is not None:
+        raise ValueError("invite already used")
+    if datetime.fromisoformat(row["expires_at"]) <= now:
+        raise ValueError("invite expired")
+    try:
+        # Guard the consume against a concurrent bind: only succeeds while still unconsumed.
+        cur = conn.execute(
+            "UPDATE invites SET consumed_by_user=?, consumed_at=?"
+            " WHERE code=? AND consumed_by_user IS NULL",
+            (user_id, now.isoformat(), code))
+        if cur.rowcount != 1:
+            raise ValueError("invite already used")
+        conn.execute("INSERT INTO memberships (user_id, org_id, role) VALUES (?, ?, ?)",
+                     (user_id, row["customer_org_id"], row["role"]))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        raise ValueError("already a member of this org")
+    except Exception:
+        conn.rollback()
+        raise
+    return Membership(user_id=user_id, org_id=row["customer_org_id"], role=row["role"])
