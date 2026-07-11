@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>客户中心 · Customer</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font: 15px/1.6 -apple-system, "PingFang SC", "Segoe UI", Roboto, sans-serif;
+         margin: 0; color: #1a2230; background: #f5f7fa; }
+  header { background: #0f766e; color: #fff; padding: 12px 16px; display: flex; gap: 10px;
+           align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0 10px 0 0; }
+  input, select, textarea { padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1;
+                            font: inherit; width: 100%; }
+  header input { width: auto; }
+  button { cursor: pointer; border: 1px solid #0f766e; background: #0f766e; color: #fff;
+           padding: 8px 14px; border-radius: 8px; font-size: 14px; }
+  button.ghost { background: #fff; color: #0f766e; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 14px; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;
+          margin-bottom: 14px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .field { margin: 10px 0; } .field label { display: block; font-size: 13px; color: #374151;
+           margin-bottom: 4px; } .req { color: #b91c1c; }
+  .caserow { padding: 10px; border-bottom: 1px solid #eef2f7; display: flex;
+             justify-content: space-between; gap: 10px; }
+  .pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; background: #e5e7eb;
+          white-space: nowrap; }
+  .muted { color: #6b7280; font-size: 13px; } .err { color: #b91c1c; min-height: 18px; }
+  .ok { color: #047857; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>客户中心 · Customer</h1>
+  <input id="uid" placeholder="用户 / User ID (e.g. cust-user)">
+  <button onclick="login()">登录 / Log in</button>
+  <span id="who" class="muted" style="color:#d1fae5"></span>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="ghost" onclick="show('cases')">我的案件 / My cases</button>
+    <button class="ghost" onclick="show('new')">＋ 新建案件 / New case</button>
+  </div>
+
+  <div id="cases" class="card">
+    <div class="err" id="casesErr"></div>
+    <div id="caseList"><p class="muted">登录后查看。 Log in to view.</p></div>
+  </div>
+
+  <div id="new" class="card hidden">
+    <h3 style="margin-top:0">新建案件 / Start a case</h3>
+    <div class="field"><label>代理 / Agent</label><select id="eng"></select></div>
+    <div class="field"><label>承运商 / Broker</label><select id="broker"></select></div>
+    <div class="field"><label>问题类型 / Issue type</label><select id="issue" onchange="renderFields()"></select></div>
+    <div class="field"><label>运单号 BOL <span class="req">*</span></label><input id="bol" placeholder="e.g. 60114839031"></div>
+    <div id="dynFields"></div>
+    <div class="field"><label>补充说明 / Note</label><textarea id="note" rows="3" placeholder="用中文描述您的诉求"></textarea></div>
+    <div class="err" id="newErr"></div>
+    <button onclick="submitCase()">提交 / Submit</button>
+    <span id="newOk" class="ok"></span>
+  </div>
+</div>
+
+<script>
+let UID = localStorage.getItem("cuid") || "";
+let ISSUE_TYPES = [], ENGAGEMENTS = [];
+const STATUS_ZH = {
+  NEW: "待处理", DRAFTING: "拟稿中", PENDING_APPROVAL: "代理审核中",
+  SENT_TO_BROKER: "已转交承运商", POSTED_TO_CUSTOMER: "已回复您", AWAITING_BROKER: "等待承运商回复",
+  REPLY_DRAFTED: "拟回复中", RESOLVED: "已解决", CLOSED: "已关闭",
+};
+
+function esc(s) { return (s ?? "").replace(/[&<>"']/g,
+  c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+function headers() { return UID ? { "X-User-Id": UID } : {}; }
+async function api(method, path, body) {
+  const opt = { method, headers: { ...headers() } };
+  if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
+  const r = await fetch(path, opt); let d = {}; try { d = await r.json(); } catch (e) {}
+  return { status: r.status, data: d };
+}
+function show(id) { for (const s of ["cases","new"]) document.getElementById(s).classList.toggle("hidden", s !== id); }
+
+function login() {
+  UID = document.getElementById("uid").value.trim(); localStorage.setItem("cuid", UID);
+  document.getElementById("who").textContent = UID ? ("as " + UID) : "";
+  loadCases(); loadNewCaseData();
+}
+
+async function loadCases() {
+  const el = document.getElementById("caseList"), err = document.getElementById("casesErr");
+  err.textContent = "";
+  if (!UID) { el.innerHTML = '<p class="muted">请先登录。 Log in first.</p>'; return; }
+  const { status, data } = await api("GET", "/cases");
+  if (status !== 200) { err.textContent = `${status} ${esc(data.error||"")}`; return; }
+  if (!data.cases.length) { el.innerHTML = '<p class="muted">暂无案件。 No cases yet.</p>'; return; }
+  el.innerHTML = data.cases.map(c => `
+    <div class="caserow">
+      <div><strong>${esc(c.shipment_bol||"(无 BOL)")}</strong>
+        <div class="muted">${esc(c.issue_type||"")}</div></div>
+      <span class="pill">${esc(STATUS_ZH[c.status] || c.status)}</span>
+    </div>`).join("");
+}
+
+async function loadNewCaseData() {
+  if (!UID) return;
+  const it = await api("GET", "/issue-types"); ISSUE_TYPES = it.status === 200 ? it.data.issue_types : [];
+  document.getElementById("issue").innerHTML =
+    ISSUE_TYPES.map(i => `<option value="${esc(i.slug)}">${esc(i.label_zh)} / ${esc(i.label_en)}</option>`).join("");
+  const en = await api("GET", "/engagements"); ENGAGEMENTS = en.status === 200 ? en.data.engagements : [];
+  document.getElementById("eng").innerHTML =
+    ENGAGEMENTS.map((e, i) => `<option value="${i}">${esc(e.agent_name)}</option>`).join("")
+    || '<option value="">（无可用代理 / no agent）</option>';
+  renderBrokers(); renderFields();
+}
+function renderBrokers() {
+  const e = ENGAGEMENTS[document.getElementById("eng").value];
+  document.getElementById("broker").innerHTML =
+    e ? e.broker_accounts.map(b => `<option value="${esc(b.id)}">${esc(b.broker_name)}</option>`).join("") : "";
+}
+document.addEventListener("change", e => { if (e.target.id === "eng") renderBrokers(); });
+
+function renderFields() {
+  const slug = document.getElementById("issue").value;
+  const it = ISSUE_TYPES.find(i => i.slug === slug);
+  const fields = it ? it.fields : [];
+  document.getElementById("dynFields").innerHTML = fields.map(f => {
+    const req = f.required ? ' <span class="req">*</span>' : "";
+    const lbl = `<label>${esc(f.label_zh)} / ${esc(f.label_en)}${req}</label>`;
+    const input = f.type === "textarea"
+      ? `<textarea data-field="${esc(f.name)}" rows="2"></textarea>`
+      : `<input data-field="${esc(f.name)}" type="${esc(f.type === 'tel' ? 'tel' : f.type === 'date' ? 'date' : 'text')}">`;
+    return `<div class="field">${lbl}${input}</div>`;
+  }).join("");
+}
+
+async function submitCase() {
+  const err = document.getElementById("newErr"), ok = document.getElementById("newOk");
+  err.textContent = ""; ok.textContent = "";
+  const engIdx = document.getElementById("eng").value, e = ENGAGEMENTS[engIdx];
+  const bol = document.getElementById("bol").value.trim();
+  if (!e) { err.textContent = "请选择代理 / pick an agent"; return; }
+  if (!bol) { err.textContent = "请填写 BOL / BOL required"; return; }
+  const fields = {};
+  for (const el of document.querySelectorAll("#dynFields [data-field]")) {
+    if (el.value.trim()) fields[el.dataset.field] = el.value.trim();
+  }
+  const body = {
+    engagement_id: e.id, broker_account_id: document.getElementById("broker").value,
+    bol, issue_type: document.getElementById("issue").value,
+    wechat_text: document.getElementById("note").value.trim(), fields,
+  };
+  const { status, data } = await api("POST", "/cases", body);
+  if (status !== 201) { err.textContent = `${status} ${esc(data.error||"提交失败")}`; return; }
+  ok.textContent = "已提交，代理将尽快处理。 Submitted.";
+  document.getElementById("bol").value = ""; document.getElementById("note").value = "";
+  renderFields(); loadCases(); show("cases");
+}
+
+document.getElementById("uid").value = UID;
+if (UID) { document.getElementById("who").textContent = "as " + UID; loadCases(); loadNewCaseData(); }
+</script>
+</body>
+</html>

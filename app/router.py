@@ -30,7 +30,7 @@ def _classification_json(result) -> str:
 
 
 def open_customer_case(conn, *, engagement_id, broker_account_id, bol, pro, issue_type,
-                       wechat_text, llm) -> Case:
+                       wechat_text, llm, fields=None) -> Case:
     row = conn.execute(
         "SELECT customer_org_id, agent_org_id, status FROM engagements WHERE id=?",
         (engagement_id,)).fetchone()
@@ -47,7 +47,10 @@ def open_customer_case(conn, *, engagement_id, broker_account_id, bol, pro, issu
         facts["BOL"] = bol
     if pro:
         facts["PRO"] = pro
-    # Trusted structured fields (BOL/PRO) come from the form, not the free text — fold them into
+    for k, v in (fields or {}).items():  # category-specific form fields (name == template slot)
+        if v not in (None, ""):
+            facts[k] = v
+    # Trusted structured fields come from the form, not the free text — fold them into
     # source_text so the anti-fabrication validator accepts them (they ARE ground truth here).
     source_text = wechat_text + "".join(f"\n{k}: {v}" for k, v in facts.items())
     req = DraftRequest(body=wechat_text, sender="customer", subject=subject, facts=facts,

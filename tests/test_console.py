@@ -10,7 +10,7 @@ from app.db import connect, init_db
 from app.server import make_handler
 from engine.llm import FakeLlmClient
 
-WEB = str(Path(__file__).resolve().parent.parent / "web" / "agent")
+WEB_ROOT = str(Path(__file__).resolve().parent.parent / "web")
 
 
 def _factory():
@@ -19,7 +19,7 @@ def _factory():
 
 def test_console_served_and_api_still_json():
     srv = ThreadingHTTPServer(("127.0.0.1", 0),
-                              make_handler(_factory, FakeLlmClient(), static_dir=WEB))
+                              make_handler(_factory, FakeLlmClient(), web_root=WEB_ROOT))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         port = srv.server_address[1]
@@ -34,5 +34,10 @@ def test_console_served_and_api_still_json():
         conn.request("GET", "/cases", headers={"X-User-Id": "op"})
         r2 = conn.getresponse()
         assert r2.status == 200 and json.loads(r2.read()) == {"cases": []}  # API still JSON
+
+        conn.request("GET", "/customer")  # customer app served too
+        r3 = conn.getresponse(); cbody = r3.read().decode("utf-8")
+        assert r3.status == 200 and "text/html" in r3.getheader("Content-Type")
+        assert "客户中心" in cbody
     finally:
         srv.shutdown(); srv.server_close()

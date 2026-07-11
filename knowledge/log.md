@@ -648,3 +648,18 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   markMissing() (a textarea can't render HTML). Browser-verified the panel renders.
 - Empty-draft guard: approve/edit abort with "draft is empty" instead of sending a blank email.
 - 88 passed, 1 skipped.
+
+## [2026-07-11] compile | customer web + intake form engine (frontend Slice 7)
+
+- `app/forms.py`: schema-driven intake form engine (FORM_SCHEMAS per issue slug; field names ==
+  template slots; issue_types()). Single source of truth; adding a type is a data change.
+- API: GET /issue-types, GET /engagements (customer's active engagements + agent's brokers,
+  scoped), POST /cases gains optional `fields` → open_customer_case(fields=) merges into
+  facts+source_text (field flows into the draft).
+- `web/customer/index.html` served at /customer (server generalized to a web_root + route map,
+  agent console stays at /): login, My cases (friendly Chinese status, no English bodies),
+  New case (agent/broker/issue selects → dynamic category fields → submit). XSS-escaped.
+- VERIFIED in a real browser (Playwright): customer logs in → New case → Delivery window →
+  fill requested_window + BOL → submit → case shows as "代理审核中"; drafted broker email
+  contains the submitted window. 93 passed, 1 skipped. Dual-language doc: customer-web.md(+.zh).
+- Deferred: customer-facing ZH summaries (engine summarize→ZH); WeChat Mini Program.

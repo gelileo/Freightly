@@ -57,7 +57,8 @@ def _create_case(req, conn, llm, transport, m, _secret) -> Response:
         case = router.open_customer_case(
             conn, engagement_id=b["engagement_id"], broker_account_id=b.get("broker_account_id"),
             bol=b.get("bol"), pro=b.get("pro"), issue_type=b.get("issue_type"),
-            wechat_text=b.get("wechat_text", ""), llm=llm)
+            wechat_text=b.get("wechat_text", ""), llm=llm,
+            fields=b.get("fields") if isinstance(b.get("fields"), dict) else None)
     except (ValueError, KeyError) as e:
         return Response(400, {"error": str(e)})
     return Response(201, {"case": asdict(case), "messages": _messages(conn, case.id)})
@@ -79,6 +80,30 @@ def _list_cases(req, conn, llm, transport, m, _secret) -> Response:
         if user_may_access_case(conn, req.user_id, r["id"]):
             out.append(asdict(cases.get_case(conn, r["id"])))
     return Response(200, {"cases": out})
+
+
+def _issue_types(req, conn, llm, transport, m, _secret) -> Response:
+    from app import forms
+    return Response(200, {"issue_types": forms.issue_types()})
+
+
+def _engagements(req, conn, llm, transport, m, _secret) -> Response:
+    """The caller's ACTIVE engagements (as a customer-org member), each with the agent name and
+    that agent's broker accounts — so a customer can pick agent + broker when starting a case."""
+    rows = conn.execute(
+        "SELECT e.id, e.agent_org_id, o.name AS agent_name FROM engagements e "
+        "JOIN memberships mem ON mem.org_id = e.customer_org_id "
+        "JOIN orgs o ON o.id = e.agent_org_id "
+        "WHERE mem.user_id = ? AND e.status = 'active'", (req.user_id,)).fetchall()
+    out = []
+    for r in rows:
+        accts = []
+        for a in repo.broker_accounts_for_agent(conn, r["agent_org_id"]):
+            bn = conn.execute("SELECT name FROM brokers WHERE id=?", (a.broker_id,)).fetchone()
+            accts.append({"id": a.id, "broker_name": bn["name"] if bn else a.broker_id})
+        out.append({"id": r["id"], "agent_org_id": r["agent_org_id"],
+                    "agent_name": r["agent_name"], "broker_accounts": accts})
+    return Response(200, {"engagements": out})
 
 
 def _get_audit(req, conn, llm, transport, m, _secret) -> Response:
@@ -183,6 +208,8 @@ def _inbound(req, conn, llm, transport, m, secret) -> Response:
 _ROUTES = [
     ("POST", re.compile(r"^/cases$"), _create_case, True),
     ("GET", re.compile(r"^/cases$"), _list_cases, True),
+    ("GET", re.compile(r"^/issue-types$"), _issue_types, True),
+    ("GET", re.compile(r"^/engagements$"), _engagements, True),
     ("GET", re.compile(r"^/cases/(?P<cid>[^/]+)$"), _get_case, True),
     ("GET", re.compile(r"^/cases/(?P<cid>[^/]+)/audit$"), _get_audit, True),
     ("POST", re.compile(r"^/cases/(?P<cid>[^/]+)/messages/(?P<mid>[^/]+)/approve$"),

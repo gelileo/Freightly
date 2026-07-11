@@ -85,6 +85,34 @@ def test_approval_flow_and_permissions():
     assert _d(c, "GET", f"/cases/{cid}/audit", user="op").status == 200
 
 
+def test_issue_types_endpoint():
+    c = _net()
+    r = _d(c, "GET", "/issue-types", user="uc")
+    assert r.status == 200 and any(i["slug"] == "delivery-window" for i in r.body["issue_types"])
+    assert _d(c, "GET", "/issue-types").status == 401  # needs X-User-Id
+
+
+def test_engagements_scoped():
+    c = _net()
+    r = _d(c, "GET", "/engagements", user="uc")  # uc ∈ cust, engagement eng is active
+    assert r.status == 200
+    engs = r.body["engagements"]
+    assert len(engs) == 1 and engs[0]["agent_name"] == "Agent"
+    assert engs[0]["broker_accounts"][0]["broker_name"] == "P1"
+    assert _d(c, "GET", "/engagements", user="ox").body["engagements"] == []  # outsider: none
+
+
+def test_create_case_with_category_fields():
+    c = _net()
+    r = _d(c, "POST", "/cases", user="uc", body={
+        "engagement_id": "eng", "broker_account_id": "ba", "bol": "60114839031",
+        "issue_type": "delivery-window", "wechat_text": "请直送",
+        "fields": {"requested_window": "6号中午前，无需预约"}})
+    assert r.status == 201
+    body = r.body["messages"][0]["body"]
+    assert "6号中午前" in body  # the category field flowed into the draft
+
+
 def test_inbound_webhook():
     c = _net()
     # wrong secret
