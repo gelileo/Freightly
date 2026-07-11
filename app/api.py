@@ -173,6 +173,15 @@ def _approve_and_maybe_send(conn, transport, case, msg, actor) -> None:
         raise ValueError("no mail transport configured")
     if msg.status != "pending_approval":
         raise ValueError(f"cannot approve message in status {msg.status!r}")
+    # GUARDRAIL: never send an unfinished draft to a broker. A draft still carrying an
+    # anti-fabrication marker (`[[MISSING: …]]`) or an unfilled template slot (`{…}`) must be
+    # edited/completed before it can go out. Raise → 409, nothing sent.
+    from engine.validate import find_placeholders
+    placeholders = find_placeholders(msg.body)
+    if placeholders:
+        raise ValueError(
+            "draft has unfilled placeholders " + ", ".join(placeholders[:5])
+            + " — edit the draft to fill or remove them before sending")
     # Validate BOTH transitions before any network call, so a legal send commits fully.
     cases._check_transition(case.status, "SENT_TO_BROKER")
     cases._check_transition("SENT_TO_BROKER", "AWAITING_BROKER")

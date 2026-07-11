@@ -45,3 +45,15 @@ def test_untraceable_value_in_body_is_redacted_no_warning():
     v = validate_draft(raw, source_text="the real shipment is 60114821897")
     assert "[[MISSING: BOL]]" in v.body
     assert v.warnings == []
+
+
+from engine.validate import find_placeholders
+
+
+def test_find_placeholders_catches_missing_and_slots():
+    assert find_placeholders("all good, BOL 123, thanks") == []
+    assert find_placeholders("addr: [[MISSING: pickup_address]]") == ["[[MISSING: pickup_address]]"]
+    assert find_placeholders("call {contact_name} at {contact_phone}") == ["{contact_name}", "{contact_phone}"]
+    # a stray brace in prose (not a slot) is not flagged
+    assert find_placeholders("we saved $5 (per the {broker} note)") == ["{broker}"]
+    assert find_placeholders("") == []

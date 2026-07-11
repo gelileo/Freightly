@@ -757,3 +757,14 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   only. Spec/plan: docs/superpowers/{specs,plans}/2026-07-11-alibaba-mail-transport*.
 - NOTE: caught + fixed a .env corruption mid-task (a `>>` append concatenated SMTP_ADDRESS onto
   the password line); repaired and re-verified SMTP login.
+
+## 2026-07-11 — Placeholder send guardrail
+- `engine.validate.find_placeholders(text)` returns any `[[…]]` / `{slot}` placeholders.
+- `app/api._approve_and_maybe_send` now refuses to send an email whose body still has placeholders
+  (409, nothing sent) — the anti-fabrication `[[MISSING]]` markers are now load-bearing at the
+  final send gate, not just advisory. Agent must edit the draft clean first.
+- Tests: find_placeholders unit test; test_transport placeholder-blocked-then-sends-after-edit;
+  updated send-path tests (test_transport/_open_case, test_api approval flow) to complete the
+  raw pickup draft before approving.
+- Docs: transport-and-config.md (send guard + note that an unfilled optional clause like
+  pro_clause trips it → make optional clauses render empty, follow-up), drafting-engine.md.
