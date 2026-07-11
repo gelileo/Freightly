@@ -2,6 +2,7 @@ from app.db import connect, init_db
 from app import repo
 from app.api import Request, dispatch
 from engine.llm import FakeLlmClient
+from app.transport import FakeTransport
 
 LLM = FakeLlmClient()
 SECRET = "s3cr3t"
@@ -17,13 +18,15 @@ def _net():
     repo.create_user(c, "ox", "email", "ox@x", id="ox"); repo.add_member(c, "ox", "other", "operator")
     repo.create_engagement(c, "cust", "agent", id="eng"); repo.approve_engagement(c, "eng")
     repo.create_broker(c, "P1", id="p1")
-    repo.connect_broker_account(c, "agent", "p1", mailbox="ltlwest@priority1.com", id="ba")
+    repo.connect_broker_account(c, "agent", "p1", mailbox="ltlwest@priority1.com",
+                                broker_email="ltlwest@priority1.com", id="ba")
     return c
 
 
-def _d(c, method, path, user=None, body=None, headers=None):
+def _d(c, method, path, user=None, body=None, headers=None, transport=None):
     return dispatch(Request(method=method, path=path, user_id=user, headers=headers or {},
-                            body=body or {}), conn=c, llm=LLM, webhook_secret=SECRET)
+                            body=body or {}), conn=c, llm=LLM,
+                    transport=transport or FakeTransport(), webhook_secret=SECRET)
 
 
 def test_unknown_route_and_auth():
@@ -74,7 +77,8 @@ def test_approval_flow_and_permissions():
     # the agent approves → sent + case advanced
     r = _d(c, "POST", f"/cases/{cid}/messages/{mid}/approve", user="op")
     assert r.status == 200 and r.body["message"]["status"] == "sent"
-    assert r.body["case"]["status"] == "SENT_TO_BROKER"
+    # after sending, the case awaits the broker's reply
+    assert r.body["case"]["status"] == "AWAITING_BROKER"
     # approving again → 409 (already sent)
     assert _d(c, "POST", f"/cases/{cid}/messages/{mid}/approve", user="op").status == 409
     # audit reachable

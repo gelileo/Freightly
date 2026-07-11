@@ -116,7 +116,8 @@ def create_broker(conn, name, id=None) -> Broker:
     return Broker(id=bid, name=name)
 
 
-def connect_broker_account(conn, agent_org_id, broker_id, mailbox=None, id=None) -> BrokerAccount:
+def connect_broker_account(conn, agent_org_id, broker_id, mailbox=None, broker_email=None,
+                           id=None) -> BrokerAccount:
     if _org_type(conn, agent_org_id) != "agent":
         raise ValueError(f"agent_org_id {agent_org_id!r} is not an agent org")
     if mailbox is not None:
@@ -125,17 +126,26 @@ def connect_broker_account(conn, agent_org_id, broker_id, mailbox=None, id=None)
             raise ValueError(f"mailbox {mailbox!r} is already claimed by agent org {owner!r}")
     aid = _id(id)
     conn.execute(
-        "INSERT INTO broker_accounts (id, agent_org_id, broker_id, mailbox) "
-        "VALUES (?, ?, ?, ?)", (aid, agent_org_id, broker_id, mailbox))
+        "INSERT INTO broker_accounts (id, agent_org_id, broker_id, mailbox, broker_email) "
+        "VALUES (?, ?, ?, ?, ?)", (aid, agent_org_id, broker_id, mailbox, broker_email))
     conn.commit()
-    return BrokerAccount(id=aid, agent_org_id=agent_org_id, broker_id=broker_id, mailbox=mailbox)
+    return BrokerAccount(id=aid, agent_org_id=agent_org_id, broker_id=broker_id, mailbox=mailbox,
+                         broker_email=broker_email)
+
+
+def _row_to_broker_account(r) -> BrokerAccount:
+    return BrokerAccount(id=r["id"], agent_org_id=r["agent_org_id"], broker_id=r["broker_id"],
+                         mailbox=r["mailbox"], broker_email=r["broker_email"])
+
+
+def broker_account(conn, account_id) -> BrokerAccount | None:
+    r = conn.execute("SELECT * FROM broker_accounts WHERE id=?", (account_id,)).fetchone()
+    return _row_to_broker_account(r) if r else None
 
 
 def broker_accounts_for_agent(conn, agent_org_id) -> list[BrokerAccount]:
-    return [BrokerAccount(id=r["id"], agent_org_id=r["agent_org_id"],
-                          broker_id=r["broker_id"], mailbox=r["mailbox"])
-            for r in conn.execute(
-                "SELECT * FROM broker_accounts WHERE agent_org_id=?", (agent_org_id,))]
+    return [_row_to_broker_account(r) for r in conn.execute(
+        "SELECT * FROM broker_accounts WHERE agent_org_id=?", (agent_org_id,))]
 
 
 def agent_for_mailbox(conn, mailbox) -> str | None:
