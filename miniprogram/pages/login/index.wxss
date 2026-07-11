@@ -1,0 +1,8 @@
+.login { padding-top: 140rpx; }
+.brand { text-align: center; margin-bottom: 90rpx; }
+.logo {
+  width: 120rpx; height: 120rpx; line-height: 120rpx;
+  margin: 0 auto 28rpx; border-radius: 28rpx;
+  background: var(--brand); color: #fff; font-size: 60rpx;
+}
+.brand .title { font-size: 40rpx; margin-bottom: 12rpx; }

@@ -8,6 +8,7 @@ load_bearing: true
 affects:
   - app/wechat.py
   - app/auth.py
+  - miniprogram/**
 references:
   - concepts/app/customer-web.md
   - concepts/app/api.md
@@ -17,12 +18,13 @@ references:
 
 # 微信小程序前端 + 鉴权
 
-**状态:后端鉴权适配器已构建(2026-07-11);小程序*视图*尚未构建。** 本文记录**为什么**以及
-**如何**用微信小程序作为客户的原生前端,并且——最关键的部分——**微信身份/登录到底如何运作**。
-服务端的 `wx.login → code2session → openid/unionid` 适配器与邀请/绑定入驻现已实现
-(`app/wechat.py`、`app/auth.py`,接入 `app/api.py`;见
+**状态:后端鉴权适配器与原生客户视图均已构建(2026-07-11);在真机/DevTools 上运行由你完成。**
+本文记录**为什么**以及**如何**用微信小程序作为客户的原生前端,并且——最关键的部分——
+**微信身份/登录到底如何运作**。服务端的 `wx.login → code2session → openid/unionid` 适配器与
+邀请/绑定入驻已实现(`app/wechat.py`、`app/auth.py`,接入 `app/api.py`;见
 `docs/superpowers/specs/2026-07-11-wechat-login-adapter-design.md` 与 `concepts/app/identity-model.md`)。
-WXML/WXSS 视图仍是暂缓的前端切片。
+原生视图位于 `miniprogram/`(见下文"视图")。**小程序无法在微信/DevTools 之外运行**,故视图在此
+通过 Playwright 验证的浏览器原型确认,而非实时运行。
 
 ## 为什么用小程序(以及它为何是一个独立前端)
 
@@ -161,11 +163,34 @@ WXML/WXSS 视图仍是暂缓的前端切片。
 token);其余都是针对已存在 API 的视图重写。适配器要扩展的 `users`/`orgs` 模型见
 [identity-model](identity-model.md)。
 
+## 视图(已构建)—— `miniprogram/`
+
+原生 WXML/WXSS/JS(无构建、无依赖),与 `web/agent`、`web/customer` 并列,是同一 API 的第三个客户端。
+规格:`docs/superpowers/specs/2026-07-11-wechat-miniprogram-views-design.md`。
+
+- **页面**(`miniprogram/pages/`):`login`(`wx.login` → `POST /auth/wechat/login` → 存 token →
+  `needs_bind` ? bind : cases)、`bind`(邀请码,经小程序码进入时从启动 `scene` 预填 →
+  `POST /auth/bind`)、`cases`(`GET /cases` → 与 `web/customer` 相同的中文状态药丸)、
+  `case`(`GET /cases/{id}` → 服务端已过滤的已批准中文更新流)、`new-case`(`GET /engagements` +
+  `GET /issue-types` → agent/broker/issue 选择 + schema 驱动动态字段 → `POST /cases {…, fields}`)。
+- **会话**(`utils/api.js`):附 `Authorization: Bearer <token>`;**401** 时清除已存 token 并
+  `wx.reLaunch` 到 login。`baseUrl` 是 `app.js` 中单一配置常量(直连美国域名 MVP)。AppSecret 绝不入客户端。
+- **验证**分两层:(1)Playwright 检查的浏览器原型(`prototype.html`)复现全部五屏(mock API)——
+  login → bind → cases → case → new-case,动态字段随 issue 切换——用于**布局/流程**;(2)对照微信
+  组件集与真实 API 契约的静态审查。原型是纯 HTML,**无法**捕获 WXML 特有问题(例如状态徽章必须用
+  `<text>` 而非 HTML `<span>`)——那是静态审查的职责。真实 API 由后端测试覆盖;小程序本身只在
+  微信/DevTools 内运行。
+
+### DevTools 交接(如何运行)
+
+1. 用你的 **AppID**(在 `project.config.json` 设置)在微信开发者工具中打开 `miniprogram/`。
+2. 把 `app.js` 的 `globalData.baseUrl` 设为你部署的 API 域名。
+3. 在 MP 后台 开发管理 → 服务器域名 登记该域名(request 域名,HTTPS)。
+4. 在模拟器/真机预览运行。首次登录会停在 bind,直到消费一个代理签发的邀请。
+
 ## 暂缓 / 待定问题
 
-- **数据驻留 vs 域名白名单:** 美国后端 + 境内小程序跨境——延迟、ICP 备案与合规需在构建前
-  给出明确答案。
-- **代理侧仍为网页:** 代理控制台([agent-console](agent-console.md))仍是浏览器应用;
-  只有*客户*前端变成小程序。
-- **session token 方案**(JWT 还是不透明 token + 存储)、刷新、`session_key` 时效等
-  是鉴权适配器 brainstorming 环节的设计决定,此处不定。
+- **数据驻留 vs 域名白名单:** 美国后端 + 境内小程序跨境——延迟、ICP 备案与合规需在生产前给出明确答案。
+- **代理侧仍为网页:** 代理控制台([agent-console](agent-console.md))仍是浏览器应用;只有*客户*前端变成小程序。
+- **仍暂缓:** 小程序码图片生成(`wxacode.getUnlimited`)、订阅消息推送("代理已回复您")、支付、
+  手机号采集(`session_key` 槽位预留)。

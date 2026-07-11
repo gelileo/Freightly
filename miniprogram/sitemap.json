@@ -1,0 +1,6 @@
+{
+  "desc": "Indexing rules; see WeChat docs. Default allows all pages.",
+  "rules": [
+    { "action": "allow", "page": "*" }
+  ]
+}

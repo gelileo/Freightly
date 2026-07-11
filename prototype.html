@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>货运客户小程序 — 预览 (mock)</title>
+<style>
+  :root { --brand:#1565c0; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#e6e8eb; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:#1a1a1a; }
+  .stage { display:flex; flex-direction:column; align-items:center; padding:24px; }
+  .banner { font-size:13px; color:#666; margin-bottom:12px; }
+  .phone { width:360px; height:720px; background:#f2f3f5; border-radius:36px; box-shadow:0 12px 40px rgba(0,0,0,.25); overflow:hidden; display:flex; flex-direction:column; border:8px solid #111; }
+  .nav { background:var(--brand); color:#fff; text-align:center; padding:14px; font-size:16px; flex:0 0 auto; }
+  .screen { flex:1; overflow-y:auto; padding:16px; }
+  .card { background:#fff; border-radius:12px; padding:16px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+  .pill { display:inline-block; padding:2px 12px; border-radius:999px; font-size:12px; background:#e3f0ff; color:var(--brand); }
+  .btn { display:block; width:100%; border:0; border-radius:10px; padding:14px; font-size:16px; background:#eef0f3; color:#333; margin-top:6px; }
+  .btn-primary { background:var(--brand); color:#fff; }
+  .row { display:flex; justify-content:space-between; align-items:center; }
+  .title { font-size:18px; font-weight:600; }
+  .muted { color:#8a8f99; font-size:13px; }
+  .err { color:#c62828; font-size:13px; margin-top:8px; }
+  label { display:block; font-size:13px; color:#555; margin:12px 0 6px; }
+  input, select, textarea { width:100%; background:#f7f8fa; border:1px solid #e3e5e8; border-radius:10px; padding:11px; font-size:15px; }
+  .logo { width:60px;height:60px;line-height:60px;margin:40px auto 14px;border-radius:14px;background:var(--brand);color:#fff;font-size:30px;text-align:center; }
+  .center { text-align:center; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="banner">预览 (mock) — 这是小程序界面的浏览器预览，非实时小程序 / UI preview, not the live Mini Program</div>
+  <div class="phone">
+    <div class="nav" id="nav">登录</div>
+    <div class="screen" id="screen"></div>
+  </div>
+</div>
+
+<script>
+// ---- in-memory mock of the app API (real API is covered by the 114-test backend suite) ----
+const DB = {
+  bound: false,
+  cases: [
+    { id: "c1", shipment_bol: "60114821897", issue_type: "reconsignment", status: "PENDING_APPROVAL" },
+    { id: "c2", shipment_bol: "60114338678", issue_type: "pickup", status: "POSTED_TO_CUSTOMER" }
+  ],
+  updates: {
+    c2: [{ id:"m1", channel:"app", lang:"zh", status:"posted",
+           body:"承运商已确认改派至新地址，预计本周四送达；改派费 $55.56 将计入本单。" }]
+  },
+  engagements: [{ id:"e1", agent_name:"Justnano", broker_accounts:[{ id:"ba1", broker_name:"Priority-1" }] }],
+  issueTypes: [
+    { slug:"pickup", label_zh:"提货问题", fields:[
+      { name:"pickup_address", label_zh:"提货地址", label_en:"Pickup address", type:"text", required:true },
+      { name:"contact_name", label_zh:"联系人", label_en:"Contact name", type:"text", required:false },
+      { name:"contact_phone", label_zh:"联系电话", label_en:"Contact phone", type:"text", required:false } ] },
+    { slug:"delivery-window", label_zh:"送达时间", fields:[
+      { name:"requested_window", label_zh:"期望时间窗", label_en:"Requested window", type:"text", required:true },
+      { name:"receiver_contact", label_zh:"收货联系人", label_en:"Receiver contact", type:"text", required:false } ] }
+  ]
+};
+const STATUS_ZH = { NEW:"待处理", DRAFTING:"拟稿中", PENDING_APPROVAL:"代理审核中",
+  SENT_TO_BROKER:"已转交承运商", POSTED_TO_CUSTOMER:"已回复您", AWAITING_BROKER:"等待承运商回复",
+  REPLY_DRAFTED:"拟回复中", RESOLVED:"已解决", CLOSED:"已关闭" };
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const nav = document.getElementById("nav"), screen = document.getElementById("screen");
+function go(title, html){ nav.textContent = title; screen.innerHTML = html; }
+
+// ---- screens ----
+function login(){
+  go("登录", `
+    <div class="center">
+      <div class="logo">货</div>
+      <div class="title">货运客户服务</div>
+      <div class="muted">登录后查看您的货运问题与最新进展</div>
+    </div>
+    <button class="btn btn-primary" id="doLogin" style="margin-top:40px;">微信登录</button>`);
+  document.getElementById("doLogin").onclick = () => DB.bound ? cases() : bind();
+}
+function bind(){
+  go("绑定账号", `
+    <div class="card">
+      <div class="title">绑定账号</div>
+      <div class="muted">请输入代理提供的邀请码（或扫描邀请二维码进入）。</div>
+      <label>邀请码</label>
+      <input id="code" placeholder="请输入邀请码">
+      <button class="btn btn-primary" id="doBind" style="margin-top:14px;">绑定</button>
+      <div class="err" id="bindErr"></div>
+    </div>`);
+  document.getElementById("doBind").onclick = () => {
+    const v = document.getElementById("code").value.trim();
+    if(!v){ document.getElementById("bindErr").textContent = "请输入邀请码"; return; }
+    DB.bound = true; cases();
+  };
+}
+function cases(){
+  const rows = DB.cases.map(c => `
+    <div class="card caseRow" data-id="${c.id}">
+      <div class="row"><div class="title" style="font-size:16px;">${esc(c.shipment_bol)}</div>
+        <span class="pill">${esc(STATUS_ZH[c.status]||c.status)}</span></div>
+      <div class="muted" style="margin-top:6px;">${esc(c.issue_type)}</div>
+    </div>`).join("");
+  go("我的货运", `
+    <div class="row" style="margin-bottom:12px;">
+      <div class="title">我的货运</div>
+      <button class="btn btn-primary" id="newC" style="width:auto;padding:8px 16px;margin:0;">+ 新建</button>
+    </div>${rows}`);
+  document.getElementById("newC").onclick = newCase;
+  [...document.querySelectorAll(".caseRow")].forEach(el => el.onclick = () => caseDetail(el.dataset.id));
+}
+function caseDetail(id){
+  const c = DB.cases.find(x => x.id === id) || {};
+  const ups = (DB.updates[id] || []);
+  const list = ups.length ? ups.map(u => `<div class="card">${esc(u.body)}</div>`).join("")
+    : `<div class="card muted">暂无更新。代理回复并审核后将在此显示。</div>`;
+  go("货运详情", `
+    <div class="card"><div class="row">
+      <div class="title" style="font-size:16px;">${esc(c.shipment_bol)}</div>
+      <span class="pill">${esc(STATUS_ZH[c.status]||c.status)}</span></div>
+      <div class="muted" style="margin-top:6px;">${esc(c.issue_type)}</div></div>
+    <div class="muted" style="margin:14px 4px 8px;">最新进展</div>${list}
+    <button class="btn" id="back" style="margin-top:12px;">返回</button>`);
+  document.getElementById("back").onclick = cases;
+}
+function newCase(){
+  const eng = DB.engagements[0];
+  const issueOpts = DB.issueTypes.map((i,ix) => `<option value="${ix}">${esc(i.label_zh)}</option>`).join("");
+  go("新建货运问题", `
+    <div class="card">
+      <div class="title">新建货运问题</div>
+      <label>代理 / Agent</label><select><option>${esc(eng.agent_name)}</option></select>
+      <label>承运商 / Broker</label><select><option>${esc(eng.broker_accounts[0].broker_name)}</option></select>
+      <label>问题类型 / Issue</label><select id="issue">${issueOpts}</select>
+      <label>BOL</label><input id="bol" placeholder="运单号 BOL">
+      <div id="dyn"></div>
+      <label>补充说明</label><textarea id="note" placeholder="用中文描述问题（可选）"></textarea>
+      <button class="btn btn-primary" id="submit" style="margin-top:14px;">提交</button>
+      <div class="err" id="newErr"></div>
+    </div>`);
+  const renderFields = () => {
+    const f = DB.issueTypes[+document.getElementById("issue").value].fields;
+    document.getElementById("dyn").innerHTML = f.map(x =>
+      `<label>${esc(x.label_zh)}${x.required?" *":""}</label><input data-field="${x.name}" placeholder="${esc(x.label_en)}">`).join("");
+  };
+  document.getElementById("issue").onchange = renderFields; renderFields();
+  document.getElementById("submit").onclick = () => {
+    if(!document.getElementById("bol").value.trim()){ document.getElementById("newErr").textContent = "请填写 BOL"; return; }
+    const issue = DB.issueTypes[+document.getElementById("issue").value];
+    DB.cases.unshift({ id:"c"+(DB.cases.length+1), shipment_bol:document.getElementById("bol").value.trim(),
+      issue_type:issue.slug, status:"PENDING_APPROVAL" });
+    cases();
+  };
+}
+login();
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@ load_bearing: true
 affects:
   - app/wechat.py
   - app/auth.py
+  - miniprogram/**
 references:
   - concepts/app/customer-web.md
   - concepts/app/api.md
@@ -17,13 +18,15 @@ references:
 
 # WeChat Mini Program Frontend + Auth
 
-**Status: the backend auth adapter is BUILT (2026-07-11); the Mini Program *views* are not.**
-This article captures *why* and *how* a WeChat Mini Program (小程序) becomes the customer's native
-frontend, and — the load-bearing part — exactly how WeChat identity/login works. The server-side
-`wx.login → code2session → openid/unionid` adapter and the invite/bind onboarding are now
-implemented (`app/wechat.py`, `app/auth.py`, wired into `app/api.py`; see
+**Status: backend auth adapter AND the native customer views are BUILT (2026-07-11); running on a
+real device/DevTools is yours.** This article captures *why* and *how* a WeChat Mini Program (小程序)
+becomes the customer's native frontend, and — the load-bearing part — exactly how WeChat
+identity/login works. The server-side `wx.login → code2session → openid/unionid` adapter and the
+invite/bind onboarding are implemented (`app/wechat.py`, `app/auth.py`, wired into `app/api.py`; see
 `docs/superpowers/specs/2026-07-11-wechat-login-adapter-design.md` and `concepts/app/identity-model.md`).
-The WXML/WXSS views remain the deferred frontend slice.
+The native views live under `miniprogram/` (see "Views" below). **A Mini Program cannot run outside
+WeChat/DevTools**, so the views are verified here via a Playwright-checked browser prototype, not a
+live run.
 
 ## Why a Mini Program (and why it's a distinct frontend)
 
@@ -176,11 +179,42 @@ mapping + our own session token); everything else is a view rewrite against an A
 already exists. See [identity-model](identity-model.md) for the `users`/`orgs` model the
 adapter would extend.
 
+## Views (built) — `miniprogram/`
+
+Native WXML/WXSS/JS (no build step, no dependencies), the third client of the same API beside
+`web/agent` and `web/customer`. Spec: `docs/superpowers/specs/2026-07-11-wechat-miniprogram-views-design.md`.
+
+- **Pages** (`miniprogram/pages/`): `login` (`wx.login` → `POST /auth/wechat/login` → store token →
+  `needs_bind` ? bind : cases), `bind` (invite code, prefilled from the 小程序码 launch `scene` param
+  → `POST /auth/bind`), `cases` (`GET /cases` → rows with the same ZH status pills as
+  `web/customer`), `case` (`GET /cases/{id}` → the approved ZH update feed the server already
+  filters), `new-case` (`GET /engagements` + `GET /issue-types` → agent/broker/issue selects +
+  schema-driven dynamic fields → `POST /cases {…, fields}`).
+- **Session** (`utils/api.js`): attaches `Authorization: Bearer <token>`; on **401** clears the
+  stored token and `wx.reLaunch`es to login. `baseUrl` is a single config constant in `app.js`
+  (the direct-to-US-domain MVP). The AppSecret never lives in the client.
+- **Verified** at two levels: (1) a Playwright-checked browser prototype (`prototype.html`)
+  reproducing all five screens with a mock API — login → bind → cases → case → new-case, dynamic
+  fields switching by issue type — for **layout/flow**; and (2) a static review against WeChat's
+  component set and the real API contract. The prototype is plain HTML, so it does **not** catch
+  WXML-specific issues (e.g. a status badge must be `<text>`, not HTML `<span>`) — those are the
+  static review's job. The real API is covered by the backend test suite; the MP itself runs only
+  in WeChat/DevTools.
+
+### DevTools handoff (to run it)
+
+1. Open `miniprogram/` in WeChat DevTools (微信开发者工具) with your **AppID** (set it in
+   `project.config.json`).
+2. Set `app.js` `globalData.baseUrl` to your deployed API host.
+3. Register that host under 开发管理 → 服务器域名 (request domain, HTTPS) in the MP admin console.
+4. Run in the simulator / preview on a device. First login lands on bind until an agent-issued
+   invite is consumed.
+
 ## Deferred / open questions
 
 - **Data-residency vs domain allowlist:** US backend + mainland-China Mini Program crossing
-  the border — latency, ICP filing, and compliance need a concrete answer before build.
+  the border — latency, ICP filing, and compliance need a concrete answer for production.
 - **Agent side stays web:** the agent console ([agent-console](agent-console.md)) remains a
   browser app; only the *customer* frontend becomes a Mini Program.
-- **Session token scheme** (JWT vs opaque + store), refresh, and `session_key` lifetime are
-  design decisions for the auth-adapter brainstorming pass, not settled here.
+- **Still deferred:** 小程序码 image generation (`wxacode.getUnlimited`), Subscription-Message
+  push ("代理已回复您"), payments, and phone-number capture (`session_key` slot reserved).
