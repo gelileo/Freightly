@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from app.api import Request, dispatch
+from app.api import Request, Response, dispatch
 
 
 def make_handler(conn_factory, llm, webhook_secret=None):
@@ -28,6 +28,8 @@ def make_handler(conn_factory, llm, webhook_secret=None):
             conn = conn_factory()
             try:
                 resp = dispatch(req, conn=conn, llm=llm, webhook_secret=webhook_secret)
+            except Exception:  # controlled 500 — never let the request thread die / leak a trace
+                resp = Response(500, {"error": "internal error"})
             finally:
                 conn.close()
             self._write(resp.status, resp.body)

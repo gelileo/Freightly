@@ -125,7 +125,8 @@ def _inbound(req, conn, llm, m, secret) -> Response:
         case = router.ingest_broker_email(
             conn, eml=b.get("eml"), to_mailbox=b.get("to_mailbox"),
             thread_id=b.get("thread_id"), llm=llm)
-    except (ValueError, KeyError) as e:
+    except (ValueError, KeyError, TypeError, OSError) as e:
+        # bad/missing eml path, unknown mailbox, unreadable file, etc. → client error
         return Response(400, {"error": str(e)})
     if case is None:
         return Response(200, {"skipped": True})
@@ -159,5 +160,7 @@ def dispatch(req: Request, *, conn, llm, webhook_secret=None) -> Response:
             continue
         if needs_user and not req.user_id:
             return Response(401, {"error": "missing X-User-Id"})
+        if not isinstance(req.body, dict):
+            return Response(400, {"error": "request body must be a JSON object"})
         return handler(req, conn, llm, m, webhook_secret)
     return Response(404, {"error": "no such route"})

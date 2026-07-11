@@ -43,10 +43,13 @@ sqlite connections aren't thread-shareable).
 
 ## Status-code mapping
 
-200/201 ok · 400 bad input (incl. inactive engagement, unknown mailbox) · 401 unauthenticated ·
-403 forbidden (access) · 404 not found · **409** illegal domain action (approve a non-pending
-message, illegal case transition — mapped from the domain `ValueError`). No 500s for expected
-domain errors.
+200/201 ok · 400 bad input (inactive engagement, unknown/unreadable mailbox or eml, **non-object
+JSON body**) · 401 unauthenticated · 403 forbidden (access) · 404 not found · **409** illegal
+domain action (approve a non-pending message, illegal case transition — mapped from the domain
+`ValueError`). `dispatch` rejects non-`dict` bodies with 400; `_inbound` maps
+`ValueError/KeyError/TypeError/OSError` (bad eml path etc.) to 400; the `server.py` shell wraps
+`dispatch` so any unexpected error is a **controlled 500** (`{"error":"internal error"}`, no
+stack leak) rather than a dead request thread.
 
 ## Invariants preserved
 

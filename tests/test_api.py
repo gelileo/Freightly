@@ -97,3 +97,23 @@ def test_inbound_webhook():
            body={"eml": "LTL-mail-2/FFBA BOL# 60112079078.eml",
                  "to_mailbox": "ltlwest@priority1.com"})
     assert r.status == 200 and "case_id" in r.body
+
+
+def test_malformed_requests_are_400_not_crashes():
+    c = _net()
+    # /inbound with valid secret but missing eml → 400 (not an uncaught TypeError)
+    r = _d(c, "POST", "/inbound", headers={"X-Webhook-Secret": SECRET},
+           body={"to_mailbox": "ltlwest@priority1.com"})
+    assert r.status == 400
+    # /inbound with a nonexistent eml path → 400 (not FileNotFoundError)
+    r = _d(c, "POST", "/inbound", headers={"X-Webhook-Secret": SECRET},
+           body={"eml": "does/not/exist.eml", "to_mailbox": "ltlwest@priority1.com"})
+    assert r.status == 400
+    # a non-object JSON body → 400 (not AttributeError on .get)
+    r = dispatch(Request(method="POST", path="/cases", user_id="uc", body=["not", "a", "dict"]),
+                 conn=c, llm=LLM, webhook_secret=SECRET)
+    assert r.status == 400
+
+
+# dispatch import for the non-dict-body test
+from app.api import dispatch  # noqa: E402
