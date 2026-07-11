@@ -84,6 +84,44 @@ def test_duplicate_message_id_is_idempotent():
     assert after == before
 
 
+class FlakyLlm:
+    """FakeLlmClient whose summarize raises the first time, then succeeds (transient error)."""
+    def __init__(self):
+        self._inner = FakeLlmClient(); self._fail = True
+
+    def generate(self, **kw): return self._inner.generate(**kw)
+
+    def summarize(self, **kw):
+        if self._fail:
+            self._fail = False
+            raise RuntimeError("transient LLM error")
+        return self._inner.summarize(**kw)
+
+
+def test_transient_llm_failure_does_not_strand_reply():
+    # C1 regression: an LLM error mid-ingest must NOT leave a half-processed reply that the
+    # Message-ID dedup then skips forever. Nothing is persisted on failure; the next poll fully
+    # reprocesses and produces the customer relay.
+    c = _db()
+    case = _seed_case_awaiting(c)
+    c.execute("INSERT INTO imap_state (mailbox, last_uid, uidvalidity) VALUES (?,0,'100')", (MB,))
+    reply = (b"Message-ID: <r1@x.com>\r\nIn-Reply-To: <root@justnanoinc.com>\r\n"
+             b"References: <root@justnanoinc.com>\r\nSubject: Re: BOL 60114338678\r\n"
+             b"From: b@x.com\r\n\r\nDelivered on the 6th.\r\n")
+    flaky = FlakyLlm()
+    # poll 1: summarize raises -> break, nothing persisted, watermark unchanged
+    assert poll_once(c, FakeImap({5: reply}), mailbox_addr=MB, llm=flaky) == []
+    assert c.execute("SELECT last_uid FROM imap_state WHERE mailbox=?",
+                     (MB,)).fetchone()["last_uid"] == 0
+    assert c.execute("SELECT COUNT(*) n FROM messages WHERE case_id=? AND party='broker'",
+                     (case.id,)).fetchone()["n"] == 0        # no partial received-message row
+    # poll 2: healthy LLM -> the same reply reprocesses and the relay is produced
+    assert poll_once(c, FakeImap({5: reply}), mailbox_addr=MB, llm=flaky) == [case.id]
+    zh = c.execute("SELECT COUNT(*) n FROM messages WHERE case_id=? AND channel='app' "
+                   "AND lang='zh' AND status='pending_approval'", (case.id,)).fetchone()["n"]
+    assert zh == 1
+
+
 import os as _os
 import pytest as _pytest
 

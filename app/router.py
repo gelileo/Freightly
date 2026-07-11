@@ -92,6 +92,10 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
                                 (tid,)).fetchone()
 
     if existing:
+        # Do the fallible LLM work FIRST, before persisting anything. If summarize raises (a
+        # transient Gemini error), no partial state is written, so the poller's Message-ID dedup
+        # won't later skip a half-processed reply — the next poll reprocesses it cleanly.
+        summary = summarize_for_customer(parsed.body, llm)
         cases.add_message(conn, case_id=existing["id"], party="broker", channel="email",
                           lang="en", body=parsed.body, status="received",
                           mail_message_id=parsed.message_id or None,
@@ -102,7 +106,6 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
                              action="broker_reply_received")
         # Relay the broker's reply to the customer as a Chinese update (approval-gated: the
         # agent approves this app-channel message → POSTED_TO_CUSTOMER → the customer sees it).
-        summary = summarize_for_customer(parsed.body, llm)
         cases.add_message(conn, case_id=existing["id"], party="agent", channel="app",
                           lang="zh", body=summary, status="pending_approval",
                           classification=_classification_json_from_triage(parsed))
@@ -112,7 +115,10 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
                              action="draft_ready")
         return cases.get_case(conn, existing["id"])  # fresh status after any transition
 
-    # new broker-initiated case (customer attribution deferred — starts unattributed)
+    # new broker-initiated case (customer attribution deferred — starts unattributed).
+    # Draft FIRST (fallible LLM) so a transient failure creates no orphan case/message and the
+    # next poll reprocesses cleanly (see the matched-thread branch for the same rationale).
+    result = _draft_reply(parsed, llm)
     bol = parsed.bol[0] if parsed.bol else None
     case = cases.create_case(conn, agent_org_id=agent_org_id, customer_org_id=None,
                              origin="broker", bol=bol,
@@ -123,7 +129,6 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
                       body=parsed.body, status="received",
                       mail_message_id=parsed.message_id or None,
                       in_reply_to=parsed.in_reply_to or None)
-    result = _draft_reply(parsed, llm)
     # add the pending draft BEFORE advancing the case, so PENDING_APPROVAL never exists
     # without a message to approve
     cases.add_message(conn, case_id=case.id, party="agent", channel="email", lang="en",

@@ -43,8 +43,12 @@ def poll_once(conn, imap, *, mailbox_addr, llm) -> list:
         try:
             case = router.ingest_broker_email(conn, eml=raw, to_mailbox=mailbox_addr,
                                               thread_id=_thread_root(parsed), llm=llm)
-        except Exception:
-            # transient failure: leave the watermark so this uid retries next poll
+        except Exception as e:
+            # Transient failure (e.g. LLM error): the fallible work runs before any DB write in
+            # ingest_broker_email, so nothing partial was committed. Leave the watermark so this
+            # uid reprocesses next poll — and LOG it so the operator sees a stuck reply.
+            print(f"inbound: ingest failed for uid {uid} "
+                  f"(msg-id {parsed.message_id!r}): {type(e).__name__}: {str(e)[:200]}")
             break
         results.append(case.id if case else None)
         conn.execute("UPDATE imap_state SET last_uid=? WHERE mailbox=?", (uid, mailbox_addr))

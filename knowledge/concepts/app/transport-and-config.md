@@ -110,3 +110,9 @@ feeds `router.ingest_broker_email` — no webhook required:
 - Gmail path retained but Alibaba is the live provider. Real Gemini verified separately (2026-07-10).
 - Recipient modeling is minimal (`broker_email` per broker account); per-contact routing and
   SMTP/IMAP retry/backoff are follow-ups (a transient poll error simply retries next cycle).
+- **Known low-risk limitations** (from the final review): a broker email with **no `Message-ID`**
+  has no secondary dedup key, so a crash in the tiny window between ingest-commit and
+  watermark-commit could duplicate it (real mail carries a Message-ID); a reply carrying only
+  `In-Reply-To` to a non-root message (no `References`) could spawn a new case instead of matching;
+  and dedup is not mailbox-scoped (harmless for the single-mailbox deployment). The primary
+  idempotency is the UID watermark; the `Message-ID` check is the secondary guard.
