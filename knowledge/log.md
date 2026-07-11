@@ -586,3 +586,13 @@ actually used, and closed it as **won't-fix**. Reasoning:
   rollback (no more 3-commit stranding window). Guarded empty from_addr (→409). server.py logs
   the traceback before a controlled 500. +1 regression test (send-failure-leaves-state-untouched).
   80 passed, 1 skipped. (Deferred: retry/backoff, in_reply_to capture, real-creds Gmail test.)
+
+## [2026-07-10] wire | real Gemini verified live + .env loading
+
+- Added dependency-free `config.load_env()` (.env → os.environ, real env wins; `.env` gitignored).
+- `GeminiLlmClient.MODEL` → `gemini-flash-latest` (stable alias; `gemini-2.5-flash` retired for
+  new accounts). VERIFIED LIVE with the real key: ZH WeChat request → EN broker clause; and
+  `config.make_llm()` auto-selects Gemini when the key is present.
+- `google-genai` is not a system/CI dependency (fakes cover tests); use a gitignored `.venv`
+  for real runs. Full suite stays hermetic on system python: 81 passed, 1 skipped.
+- Secret hygiene: `.env` and `.venv` added to `.gitignore`; neither tracked/staged.
