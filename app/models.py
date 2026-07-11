@@ -17,6 +17,7 @@ class User:
     name: str
     auth_kind: str  # 'wechat' | 'phone' | 'email'
     auth_id: str
+    union_id: str | None = None
 
 
 @dataclass
