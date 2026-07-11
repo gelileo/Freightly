@@ -547,3 +547,14 @@ actually used, and closed it as **won't-fix**. Reasoning:
   plus customer-initiated pickup → edit → approve. Deterministic (FakeLlmClient).
 - `knowledge/concepts/app/headless-backend.md`: overview tying engine + identity + case core,
   the guarantees, and the built-vs-deferred list. Headless backend core is functionally complete.
+
+## [2026-07-10] compile | JSON HTTP API server (app Slice 4)
+
+- `app/api.py`: pure `dispatch(req, *, conn, llm, webhook_secret) -> Response` (routing, auth,
+  access, JSON) — the tested surface. Endpoints: POST /cases, GET /cases, GET /cases/{id},
+  GET /cases/{id}/audit, POST /cases/{id}/messages/{mid}/{approve,edit,reject}, POST /inbound.
+- Auth boundary: user routes require `X-User-Id` (upstream-authenticated) + enforce app.access;
+  /inbound uses `X-Webhook-Secret` (constant-time). Domain ValueError → 409; access → 403.
+- `app/server.py`: thin stdlib ThreadingHTTPServer shell (fresh conn per request).
+- 7 tests (6 dispatch + 1 live-socket smoke); full suite 72 passed, 1 skipped. Doc:
+  `knowledge/concepts/app/api.md`. Approval remains the only send/post path.
