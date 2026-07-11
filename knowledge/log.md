@@ -663,3 +663,15 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   fill requested_window + BOL → submit → case shows as "代理审核中"; drafted broker email
   contains the submitted window. 93 passed, 1 skipped. Dual-language doc: customer-web.md(+.zh).
 - Deferred: customer-facing ZH summaries (engine summarize→ZH); WeChat Mini Program.
+
+## [2026-07-11] fix | customer-web review findings (fields forgery + cross-agent broker)
+
+- CRITICAL fixed: `fields` are now whitelisted to the chosen issue type's FORM_SCHEMAS field
+  names in open_customer_case — a client can no longer override the trusted BOL/PRO (never in a
+  schema) or inject off-schema factual slots (charge_ref, …) that would tautologically pass the
+  anti-fabrication validator. Legit schema fields (customer's own request details) still flow.
+- Important fixed: open_customer_case validates broker_account_id belongs to the engagement's
+  agent org (was a cross-agent leak, now reachable via GET /engagements) → 400 otherwise.
+- Important fixed: added ISSUE_LABELS["pro-lookup"] so the customer menu offers it.
+- Minor: dropped double-esc() on customer textContent error assignments.
+- +2 regression tests (forged fields dropped; cross-agent broker rejected). 95 passed, 1 skipped.

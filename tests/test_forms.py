@@ -11,7 +11,7 @@ KNOWN_SLOTS = {
 def test_issue_types_shape_and_slots():
     its = issue_types()
     slugs = {i["slug"] for i in its}
-    assert {"delivery-window", "pickup", "other"} <= slugs
+    assert {"delivery-window", "pickup", "other", "pro-lookup"} <= slugs  # pro-lookup surfaced
     dw = next(i for i in its if i["slug"] == "delivery-window")
     assert any(f["name"] == "requested_window" for f in dw["fields"])
     for it in its:

@@ -96,7 +96,7 @@ async function loadCases() {
   err.textContent = "";
   if (!UID) { el.innerHTML = '<p class="muted">请先登录。 Log in first.</p>'; return; }
   const { status, data } = await api("GET", "/cases");
-  if (status !== 200) { err.textContent = `${status} ${esc(data.error||"")}`; return; }
+  if (status !== 200) { err.textContent = `${status} ${data.error||""}`; return; }
   if (!data.cases.length) { el.innerHTML = '<p class="muted">暂无案件。 No cases yet.</p>'; return; }
   el.innerHTML = data.cases.map(c => `
     <div class="caserow">
@@ -155,7 +155,7 @@ async function submitCase() {
     wechat_text: document.getElementById("note").value.trim(), fields,
   };
   const { status, data } = await api("POST", "/cases", body);
-  if (status !== 201) { err.textContent = `${status} ${esc(data.error||"提交失败")}`; return; }
+  if (status !== 201) { err.textContent = `${status} ${data.error||"提交失败"}`; return; }
   ok.textContent = "已提交，代理将尽快处理。 Submitted.";
   document.getElementById("bol").value = ""; document.getElementById("note").value = "";
   renderFields(); loadCases(); show("cases");

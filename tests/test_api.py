@@ -113,6 +113,32 @@ def test_create_case_with_category_fields():
     assert "6号中午前" in body  # the category field flowed into the draft
 
 
+def test_fields_cannot_forge_factual_slots():
+    # a client cannot override the trusted BOL/PRO or inject off-schema factual slots via fields
+    c = _net()
+    r = _d(c, "POST", "/cases", user="uc", body={
+        "engagement_id": "eng", "broker_account_id": "ba", "bol": "60114338678",
+        "issue_type": "pickup", "wechat_text": "help",
+        "fields": {"BOL": "99999999999", "charge_ref": "FORGED", "pickup_address": "123 Real St"}})
+    assert r.status == 201
+    body = r.body["messages"][0]["body"]
+    assert "60114338678" in body and "99999999999" not in body   # trusted BOL, not the forged one
+    assert "FORGED" not in body                                    # off-schema slot dropped
+    assert "123 Real St" in body                                   # legit schema field kept
+    assert r.body["case"]["shipment_bol"] == "60114338678"
+
+
+def test_broker_account_must_belong_to_engagement_agent():
+    c = _net()
+    # 'other' agent org gets its own broker account; the customer's engagement is with 'agent'
+    repo.create_broker(c, "AAA", id="b2")
+    repo.connect_broker_account(c, "other", "b2", mailbox="x@other.com", id="ba-other")
+    r = _d(c, "POST", "/cases", user="uc", body={
+        "engagement_id": "eng", "broker_account_id": "ba-other", "bol": "1",
+        "issue_type": "pickup", "wechat_text": "x"})
+    assert r.status == 400  # cross-agent broker account rejected
+
+
 def test_inbound_webhook():
     c = _net()
     # wrong secret

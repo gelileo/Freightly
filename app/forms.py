@@ -55,6 +55,7 @@ ISSUE_LABELS: dict[str, tuple[str, str]] = {
     "delivery-window": ("送达时间/预约", "Delivery window"),
     "shipment-status": ("查询状态", "Shipment status"),
     "pod-request": ("索取签收凭证 (POD)", "POD request"),
+    "pro-lookup": ("查询 PRO 单号", "PRO lookup"),
     "cancellation": ("取消", "Cancellation"),
     "reconsignment": ("改送新地址", "Reconsignment"),
     "damage": ("货物损坏", "Damage"),
