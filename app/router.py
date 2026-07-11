@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 
-from scripts.parse_eml import parse_eml
+from scripts.parse_eml import parse_eml, parse_eml_bytes
 from scripts.triage import triage
 from app import repo, cases, forms
 from app.models import Case
@@ -75,8 +75,9 @@ def open_customer_case(conn, *, engagement_id, broker_account_id, bol, pro, issu
 
 def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case | None:
     """Route an inbound broker email. `eml` is a path/str for scripts.parse_eml; `to_mailbox`
-    is the connected mailbox it arrived in (resolves the owning agent org)."""
-    parsed = parse_eml(eml)
+    is the connected mailbox it arrived in (resolves the owning agent org). `eml` may be a
+    path/str (file) or raw message bytes (from the IMAP poller)."""
+    parsed = parse_eml_bytes(eml) if isinstance(eml, (bytes, bytearray)) else parse_eml(eml)
     if triage(parsed.body, parsed.sender) == "skip":
         return None  # non-actionable: no case, no message
 
@@ -93,6 +94,8 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
     if existing:
         cases.add_message(conn, case_id=existing["id"], party="broker", channel="email",
                           lang="en", body=parsed.body, status="received",
+                          mail_message_id=parsed.message_id or None,
+                          in_reply_to=parsed.in_reply_to or None,
                           classification=_classification_json_from_triage(parsed))
         if existing["status"] == "AWAITING_BROKER":
             cases.transition(conn, existing["id"], "REPLY_DRAFTED", actor="system",
@@ -117,7 +120,9 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
                              mail_thread_id=tid)
     cases.transition(conn, case.id, "DRAFTING", actor="system", action="ingest_broker_email")
     cases.add_message(conn, case_id=case.id, party="broker", channel="email", lang="en",
-                      body=parsed.body, status="received")
+                      body=parsed.body, status="received",
+                      mail_message_id=parsed.message_id or None,
+                      in_reply_to=parsed.in_reply_to or None)
     result = _draft_reply(parsed, llm)
     # add the pending draft BEFORE advancing the case, so PENDING_APPROVAL never exists
     # without a message to approve
