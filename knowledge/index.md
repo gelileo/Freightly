@@ -49,6 +49,7 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | `app/cases.py` (state machine, audit, approval), `app/router.py` (intake + inbound) | case-workflow.md |
 | `app/api.py` (`dispatch`), `app/server.py` (http.server shell) | api.md, transport-and-config.md |
 | `app/wechat.py` (`WeChatClient`, Fake/Real), `app/auth.py` (login/session/invite/bind) | wechat-miniprogram.md, identity-model.md |
+| `miniprogram/**` (native WeChat Mini Program: 5 pages + `utils/api.js`), `prototype.html` (browser preview) | wechat-miniprogram.md → "Views (built)" |
 | `app/transport.py` (MailTransport, FakeTransport, GmailTransport), `app/config.py` (make_llm/make_transport) | transport-and-config.md |
 | `web/agent/index.html` (agent console), `app/server.py` static-serve route | agent-console.md |
 | `web/customer/index.html` (customer app), `app/forms.py` (form engine) | customer-web.md |

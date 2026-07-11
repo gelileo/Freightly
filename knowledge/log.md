@@ -724,3 +724,16 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   adapter), index.md. Spec/plan: docs/superpowers/{specs,plans}/2026-07-11-wechat-login-adapter*.
 - Tests: tests/test_wechat.py, tests/test_auth.py, extended tests/test_api.py. 112 passed, 3 skipped
   (Gemini generate/summarize + real WeChat, all guarded).
+
+## 2026-07-11 — WeChat Mini Program customer views built
+- New: `miniprogram/` native Mini Program (no build, no deps) — five pages (login, bind, cases,
+  case, new-case) consuming the existing JSON API via `utils/api.js` (Bearer token + 401→login);
+  `baseUrl` config constant (direct-to-US-domain MVP). Mirrors web/customer flow + ZH status labels.
+- No backend code changed; the MP is the third client of the same API.
+- Verification: `prototype.html`, a self-contained browser preview of all five screens with a mock
+  API, verified end-to-end via Playwright (login→bind→cases with ZH pills→case ZH update→new-case
+  dynamic fields→submit). A Mini Program cannot run outside WeChat/DevTools, so no pytest here.
+- Articles touched: wechat-miniprogram.md (+ .zh) — "Views (built)" section + DevTools handoff,
+  status→views built, affects += miniprogram/**; index.md code-module row.
+- Spec/plan: docs/superpowers/{specs,plans}/2026-07-11-wechat-miniprogram-views*.
+- Deferred (unchanged): 小程序码 image gen, Subscription-Message push, payments, phone capture.
