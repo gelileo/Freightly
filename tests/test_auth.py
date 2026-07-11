@@ -92,7 +92,9 @@ def test_create_and_bind_invite_grants_membership():
     row = c.execute("SELECT consumed_by_user FROM invites WHERE code_hash=?",
                     (auth._hash(code),)).fetchone()
     assert row["consumed_by_user"] == alice.id
-    assert c.execute("SELECT COUNT(*) n FROM invites WHERE code_hash=?", (code,)).fetchone()["n"] == 0
+    # the raw code is nowhere in the table — only its hash is stored
+    stored = c.execute("SELECT code_hash FROM invites").fetchone()["code_hash"]
+    assert stored == auth._hash(code) and stored != code
 
 
 def test_bind_rejects_bad_expired_and_consumed():

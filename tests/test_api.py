@@ -233,6 +233,24 @@ def test_invalid_and_revoked_bearer_tokens_401():
     assert _d(c, "GET", "/cases", headers=hdr).status == 401           # revoked
 
 
+def test_bad_bearer_does_not_fall_through_to_x_user_id():
+    # a bad Bearer token must NOT silently fall through to a valid X-User-Id on a protected route
+    c = _net()
+    r = _d(c, "GET", "/cases", user="op", headers={"Authorization": "Bearer garbage"})
+    assert r.status == 401
+
+
+def test_stale_bearer_on_public_login_still_works():
+    # a Mini Program interceptor attaches the stored (now-expired/revoked) token to EVERY request;
+    # the re-login call must still succeed rather than wedge at 401
+    c = _net()
+    token = _d(c, "POST", "/auth/wechat/login", body={"js_code": "z"}).body["session_token"]
+    _d(c, "POST", "/auth/logout", headers={"Authorization": f"Bearer {token}"})
+    again = _d(c, "POST", "/auth/wechat/login", body={"js_code": "z"},
+               headers={"Authorization": f"Bearer {token}"})   # stale token still attached
+    assert again.status == 200 and again.body["session_token"] != token
+
+
 def test_invites_agent_only():
     c = _net()
     # a customer-org member may not issue invites

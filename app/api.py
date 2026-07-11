@@ -294,21 +294,29 @@ _ROUTES = [
 def dispatch(req: Request, *, conn, llm, transport=None, webhook_secret=None,
              wechat=None) -> Response:
     path = req.path.split("?", 1)[0]
-    # Resolve a Bearer session token to a user_id (real clients). A present-but-invalid token is
-    # an auth failure — not a silent fall-through to the legacy X-User-Id header.
+    # Resolve a Bearer session token to a user_id (real clients). A valid token sets the identity;
+    # a present-but-invalid token is a *bad* credential — never a silent fall-through to the legacy
+    # X-User-Id header. We defer the 401 until after route matching, though, so a public route
+    # (e.g. /auth/wechat/login) still works when a client's global interceptor attaches a stale
+    # token to the very request meant to re-login. On a protected route a bad token hard-401s.
     auth_header = req.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
+    bearer_present = auth_header.startswith("Bearer ")
+    bearer_bad = False
+    if bearer_present:
         from app import auth
         uid = auth.resolve_session(conn, auth_header[len("Bearer "):])
         if uid is None:
-            return Response(401, {"error": "invalid or expired session"})
-        req.user_id = uid
+            bearer_bad = True
+        else:
+            req.user_id = uid
     for method, rx, handler, needs_user in _ROUTES:
         if method != req.method:
             continue
         m = rx.match(path)
         if not m:
             continue
+        if bearer_bad and needs_user:  # bad token on a protected route: reject, no fall-through
+            return Response(401, {"error": "invalid or expired session"})
         if needs_user and not req.user_id:
             return Response(401, {"error": "missing X-User-Id"})
         if not isinstance(req.body, dict):
