@@ -1,6 +1,11 @@
 from engine.llm import FakeLlmClient, LlmDraft
 
 
+def test_fake_summarize():
+    s = FakeLlmClient().summarize(text="Per carrier:\nDelivered on the 6th.", target_lang="zh")
+    assert s.startswith("[summary->zh]") and "Per carrier" in s
+
+
 def test_fake_llm_fills_known_slots_and_marks_missing():
     llm = FakeLlmClient()
     out = llm.generate(

@@ -46,13 +46,35 @@ def test_create_case_and_scoping():
     c = _net()
     r = _open_case(c, "uc")
     assert r.status == 201 and r.body["case"]["status"] == "PENDING_APPROVAL"
-    assert len(r.body["messages"]) == 1
+    # customer intake: the only message is the internal English draft, withheld from the customer
+    assert len(r.body["messages"]) == 0
     cid = r.body["case"]["id"]
     # the customer and agent can read it; an unrelated agent org cannot
     assert _d(c, "GET", f"/cases/{cid}", user="uc").status == 200
     assert _d(c, "GET", f"/cases/{cid}", user="op").status == 200
     assert _d(c, "GET", f"/cases/{cid}", user="ox").status == 403
     assert _d(c, "GET", "/cases/missing", user="op").status == 404
+
+
+def test_customer_message_view_filtered_server_side():
+    """A customer must NEVER receive the internal English broker draft from the API — the
+    filtering is enforced server-side in _get_case, not just hidden by the web client."""
+    c = _net()
+    cid = _open_case(c, "uc").body["case"]["id"]
+    # agent sees the pending English draft; customer sees nothing (nothing posted app/zh yet)
+    assert len(_d(c, "GET", f"/cases/{cid}", user="op").body["messages"]) == 1
+    cust_msgs = _d(c, "GET", f"/cases/{cid}", user="uc").body["messages"]
+    assert cust_msgs == []
+    # approve the draft (sends to broker) — still not customer-visible (it's an email message)
+    mid = _d(c, "GET", f"/cases/{cid}", user="op").body["messages"][0]["id"]
+    _d(c, "POST", f"/cases/{cid}/messages/{mid}/approve", user="op")
+    assert _d(c, "GET", f"/cases/{cid}", user="uc").body["messages"] == []
+    # only an approved app/zh message reaches the customer
+    from app import cases
+    cases.add_message(c, case_id=cid, party="agent", channel="app", lang="zh",
+                      body="您的货件已更新", status="posted")
+    got = _d(c, "GET", f"/cases/{cid}", user="uc").body["messages"]
+    assert len(got) == 1 and got[0]["lang"] == "zh" and got[0]["body"] == "您的货件已更新"
 
 
 def test_create_case_forbidden_for_outsider():
@@ -109,7 +131,8 @@ def test_create_case_with_category_fields():
         "issue_type": "delivery-window", "wechat_text": "请直送",
         "fields": {"requested_window": "6号中午前，无需预约"}})
     assert r.status == 201
-    body = r.body["messages"][0]["body"]
+    cid = r.body["case"]["id"]
+    body = _d(c, "GET", f"/cases/{cid}", user="op").body["messages"][0]["body"]
     assert "6号中午前" in body  # the category field flowed into the draft
 
 
@@ -121,7 +144,8 @@ def test_fields_cannot_forge_factual_slots():
         "issue_type": "pickup", "wechat_text": "help",
         "fields": {"BOL": "99999999999", "charge_ref": "FORGED", "pickup_address": "123 Real St"}})
     assert r.status == 201
-    body = r.body["messages"][0]["body"]
+    cid = r.body["case"]["id"]
+    body = _d(c, "GET", f"/cases/{cid}", user="op").body["messages"][0]["body"]
     assert "60114338678" in body and "99999999999" not in body   # trusted BOL, not the forged one
     assert "FORGED" not in body                                    # off-schema slot dropped
     assert "123 Real St" in body                                   # legit schema field kept

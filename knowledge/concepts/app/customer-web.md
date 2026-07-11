@@ -55,8 +55,8 @@ Log in as a customer → New case → agent/broker/issue selects populate → ch
 
 ## Deferred / notes
 
-- **Customer-facing ZH updates** (summarizing a broker reply into a Chinese message shown to the
-  customer) still need the engine `summarize→ZH` capability — for now the customer sees status
-  only, not message content. The API does return message bodies to a case party if requested;
-  the customer frontend deliberately shows only status.
+- **Customer-facing ZH updates are now built** (Slice 8, see `concepts/drafting/summarize.md`):
+  clicking a case shows agent-approved Chinese updates (`channel=app, lang=zh, status=posted`) —
+  a broker reply is summarized to Chinese, approval-gated, then displayed. The customer app still
+  never shows internal English drafts.
 - WeChat Mini Program (same API) is a separate slice needing the WeChat toolchain.

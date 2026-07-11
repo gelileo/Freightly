@@ -49,6 +49,7 @@
   <div id="cases" class="card">
     <div class="err" id="casesErr"></div>
     <div id="caseList"><p class="muted">登录后查看。 Log in to view.</p></div>
+    <div id="caseDetail"></div>
   </div>
 
   <div id="new" class="card hidden">
@@ -99,11 +100,23 @@ async function loadCases() {
   if (status !== 200) { err.textContent = `${status} ${data.error||""}`; return; }
   if (!data.cases.length) { el.innerHTML = '<p class="muted">暂无案件。 No cases yet.</p>'; return; }
   el.innerHTML = data.cases.map(c => `
-    <div class="caserow">
+    <div class="caserow" style="cursor:pointer" onclick="openCustomerCase('${esc(c.id)}')">
       <div><strong>${esc(c.shipment_bol||"(无 BOL)")}</strong>
-        <div class="muted">${esc(c.issue_type||"")}</div></div>
+        <div class="muted">${esc(c.issue_type||"")} · 点击查看更新 / tap for updates</div></div>
       <span class="pill">${esc(STATUS_ZH[c.status] || c.status)}</span>
     </div>`).join("");
+}
+
+async function openCustomerCase(id) {
+  const d = document.getElementById("caseDetail");
+  const { status, data } = await api("GET", "/cases/" + id);
+  if (status !== 200) { d.innerHTML = `<p class="err">${status} ${data.error||""}</p>`; return; }
+  // Only agent-approved Chinese updates are shown — never internal English drafts.
+  const updates = data.messages.filter(m => m.channel === "app" && m.lang === "zh" && m.status === "posted");
+  d.innerHTML = `<h4 style="margin:14px 0 6px">案件 ${esc(data.case.shipment_bol||"")} · 更新 / Updates</h4>`
+    + (updates.length
+        ? updates.map(m => `<div class="caserow"><div>${esc(m.body)}</div></div>`).join("")
+        : '<p class="muted">暂无更新，代理正在处理。 No updates yet — your agent is on it.</p>');
 }
 
 async function loadNewCaseData() {

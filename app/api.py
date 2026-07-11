@@ -30,11 +30,19 @@ class Response:
     body: dict
 
 
-def _messages(conn, case_id) -> list[dict]:
-    return [{"id": r["id"], "party": r["party"], "channel": r["channel"], "lang": r["lang"],
-             "body": r["body"], "status": r["status"], "classification": r["classification"]}
-            for r in conn.execute(
-                "SELECT * FROM messages WHERE case_id=? ORDER BY rowid", (case_id,))]
+def _messages(conn, case_id, agent_view=True) -> list[dict]:
+    """agent_view=True → all messages (agent console). Customer view (False) → ONLY
+    agent-approved Chinese posts (channel=app, lang=zh, status=posted); internal English
+    drafts and raw received broker mail are withheld server-side, not just hidden by the UI."""
+    out = []
+    for r in conn.execute("SELECT * FROM messages WHERE case_id=? ORDER BY rowid", (case_id,)):
+        if not agent_view and not (r["channel"] == "app" and r["lang"] == "zh"
+                                   and r["status"] == "posted"):
+            continue
+        out.append({"id": r["id"], "party": r["party"], "channel": r["channel"],
+                    "lang": r["lang"], "body": r["body"], "status": r["status"],
+                    "classification": r["classification"]})
+    return out
 
 
 def _member_of(conn, user_id, org_id) -> bool:
@@ -61,17 +69,22 @@ def _create_case(req, conn, llm, transport, m, _secret) -> Response:
             fields=b.get("fields") if isinstance(b.get("fields"), dict) else None)
     except (ValueError, KeyError) as e:
         return Response(400, {"error": str(e)})
-    return Response(201, {"case": asdict(case), "messages": _messages(conn, case.id)})
+    agent_view = repo.is_member(conn, req.user_id, case.agent_org_id)
+    return Response(201, {"case": asdict(case),
+                          "messages": _messages(conn, case.id, agent_view)})
 
 
 def _get_case(req, conn, llm, transport, m, _secret) -> Response:
     cid = m.group("cid")
-    if cases.get_case(conn, cid) is None:
+    case = cases.get_case(conn, cid)
+    if case is None:
         return Response(404, {"error": "not found"})
     if not user_may_access_case(conn, req.user_id, cid):
         return Response(403, {"error": "forbidden"})
-    return Response(200, {"case": asdict(cases.get_case(conn, cid)),
-                          "messages": _messages(conn, cid)})
+    # agent-org members see everything; customer-side callers see only approved ZH posts
+    agent_view = repo.is_member(conn, req.user_id, case.agent_org_id)
+    return Response(200, {"case": asdict(case),
+                          "messages": _messages(conn, cid, agent_view)})
 
 
 def _list_cases(req, conn, llm, transport, m, _secret) -> Response:

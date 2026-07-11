@@ -675,3 +675,15 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - Important fixed: added ISSUE_LABELS["pro-lookup"] so the customer menu offers it.
 - Minor: dropped double-esc() on customer textContent error assignments.
 - +2 regression tests (forged fields dropped; cross-agent broker rejected). 95 passed, 1 skipped.
+
+## [2026-07-11] compile | engine summarize→ZH + customer ZH updates (Slice 8)
+
+- `LlmClient.summarize(text,target_lang,context)` added to the port (Fake deterministic; Gemini
+  real, faithful plain-text). `engine.drafting.summarize_for_customer`.
+- `app/router.ingest_broker_email`: matched-thread broker reply now creates a customer-facing
+  ZH message (channel=app, lang=zh, pending_approval) via summarize + advances to
+  PENDING_APPROVAL. Agent approves → POSTED_TO_CUSTOMER.
+- Customer app: clickable case → shows posted app/zh updates (never English drafts).
+- VERIFIED LIVE (real Gemini): out-of-route broker email → faithful ZH summary (kept address +
+  $55.56 fee) → agent-approved → shown in the customer app (browser-confirmed). 97 passed, 1 skipped.
+- Docs: knowledge/concepts/drafting/summarize.md (+ .zh); customer-web deferred note → built.
