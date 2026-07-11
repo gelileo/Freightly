@@ -5,6 +5,9 @@ area: app
 updated: 2026-07-11
 status: thin
 load_bearing: true
+affects:
+  - app/wechat.py
+  - app/auth.py
 references:
   - concepts/app/customer-web.md
   - concepts/app/api.md
@@ -14,11 +17,13 @@ references:
 
 # WeChat Mini Program Frontend + Auth
 
-**Status: not built yet.** This article captures *why* and *how* a WeChat Mini Program
-(小程序) would become the customer's native frontend, and — the load-bearing part — exactly
-how WeChat identity/login works, so the deferred "real WeChat login is a gateway concern"
-(see [api](api.md)) can be designed against reality rather than guessed. It is the reference
-for when we actually build that frontend.
+**Status: the backend auth adapter is BUILT (2026-07-11); the Mini Program *views* are not.**
+This article captures *why* and *how* a WeChat Mini Program (小程序) becomes the customer's native
+frontend, and — the load-bearing part — exactly how WeChat identity/login works. The server-side
+`wx.login → code2session → openid/unionid` adapter and the invite/bind onboarding are now
+implemented (`app/wechat.py`, `app/auth.py`, wired into `app/api.py`; see
+`docs/superpowers/specs/2026-07-11-wechat-login-adapter-design.md` and `concepts/app/identity-model.md`).
+The WXML/WXSS views remain the deferred frontend slice.
 
 ## Why a Mini Program (and why it's a distinct frontend)
 

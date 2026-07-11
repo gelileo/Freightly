@@ -708,3 +708,19 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - Indexed under "App backend"; added a row to CLAUDE.md article-mapping table.
 - Capture-first: documents a not-yet-built frontend so the auth adapter is designed against
   reality; no code changed.
+
+## 2026-07-11 — WeChat-login adapter built (sessions + invite/bind)
+- New: `app/wechat.py` (WeChatClient port + Fake + Real jscode2session, stdlib urllib) and
+  `app/auth.py` (login_wechat, resolve_session, revoke_session, create_invite, bind_via_invite).
+- Schema: `users.union_id`; `sessions` (opaque token stored sha256-hashed, revocable, expiring);
+  `invites` (single-use, agent-issued, 128-bit code stored hashed).
+- API: `dispatch` resolves `Authorization: Bearer` → user_id before routing (invalid → 401);
+  new routes `/auth/wechat/login` (public), `/auth/bind`, `/auth/logout`, `/invites` (agent-only).
+  `server.py`/`config.make_wechat` wired. Access model unchanged: bind adds a membership, existing
+  engagement-scoping does the rest.
+- Security: commit review flagged 32-bit invite codes → hardened to 128-bit + hashed at rest
+  (both credentials now: strong random, stored hashed, raw revealed once).
+- Articles touched: identity-model.md, api.md, wechat-miniprogram.md (+ .zh, status→built for the
+  adapter), index.md. Spec/plan: docs/superpowers/{specs,plans}/2026-07-11-wechat-login-adapter*.
+- Tests: tests/test_wechat.py, tests/test_auth.py, extended tests/test_api.py. 112 passed, 3 skipped
+  (Gemini generate/summarize + real WeChat, all guarded).

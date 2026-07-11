@@ -5,6 +5,9 @@ area: app
 updated: 2026-07-11
 status: thin
 load_bearing: true
+affects:
+  - app/wechat.py
+  - app/auth.py
 references:
   - concepts/app/customer-web.md
   - concepts/app/api.md
@@ -14,9 +17,12 @@ references:
 
 # 微信小程序前端 + 鉴权
 
-**状态:尚未构建。** 本文记录**为什么**以及**如何**用微信小程序作为客户的原生前端,并且——
-最关键的部分——**微信身份/登录到底如何运作**,以便此前暂缓的"真实微信登录属于网关职责"
-(见 [api](api.md))能基于事实来设计,而非猜测。它是我们真正构建该前端时的参考。
+**状态:后端鉴权适配器已构建(2026-07-11);小程序*视图*尚未构建。** 本文记录**为什么**以及
+**如何**用微信小程序作为客户的原生前端,并且——最关键的部分——**微信身份/登录到底如何运作**。
+服务端的 `wx.login → code2session → openid/unionid` 适配器与邀请/绑定入驻现已实现
+(`app/wechat.py`、`app/auth.py`,接入 `app/api.py`;见
+`docs/superpowers/specs/2026-07-11-wechat-login-adapter-design.md` 与 `concepts/app/identity-model.md`)。
+WXML/WXSS 视图仍是暂缓的前端切片。
 
 ## 为什么用小程序(以及它为何是一个独立前端)
 

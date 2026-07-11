@@ -10,21 +10,27 @@ affects:
 references:
   - concepts/app/case-workflow.md
   - concepts/app/identity-model.md
+  - concepts/app/wechat-miniprogram.md
 ---
 
 # HTTP API
 
 Slice 4: a JSON HTTP API over the headless backend. Dependency-free (stdlib `http.server`).
-The tested surface is the **pure `dispatch(req, *, conn, llm, webhook_secret) -> Response`**
-function in `app/api.py`; `app/server.py` is a thin `ThreadingHTTPServer` shell that translates
+The tested surface is the **pure `dispatch(req, *, conn, llm, transport, webhook_secret, wechat)
+-> Response`** function in `app/api.py`; `app/server.py` is a thin `ThreadingHTTPServer` shell that translates
 HTTP ↔ `Request`/`Response` and owns the socket (one fresh sqlite connection per request —
 sqlite connections aren't thread-shareable).
 
 ## Auth boundary
 
-- **User routes** trust an upstream-authenticated **`X-User-Id`** header. Real WeChat/OAuth
-  login happens at the gateway/frontend; the API mints no sessions. Missing header → **401**.
-  Every user route then enforces `app.access` (→ **403** on denial).
+- **Session tokens (WeChat login).** `dispatch` resolves an `Authorization: Bearer <token>` header
+  to a `user_id` **before routing** (`auth.resolve_session`, from the WeChat-login adapter). A
+  present-but-invalid/expired/revoked token → **401** immediately — never a silent fall-through.
+- **User routes** otherwise trust an upstream-authenticated **`X-User-Id`** header (tests + trusted
+  internal callers). Missing identity on a user route → **401**; every user route then enforces
+  `app.access` (→ **403** on denial). **Production hardening:** behind the real gateway, raw
+  `X-User-Id` from the public internet must not be trusted — only Bearer sessions resolve identity
+  there (recorded, not built).
 - **`POST /inbound`** (mail-transport webhook) authenticates with a shared **`X-Webhook-Secret`**
   (constant-time compare); no user context. Missing/wrong → **401**.
 
@@ -39,6 +45,10 @@ sqlite connections aren't thread-shareable).
 | `POST /cases/{id}/messages/{mid}/approve` | → `{message, case}` | member of case's **agent** org |
 | `POST /cases/{id}/messages/{mid}/edit` | `{body}` → `{message, case}` | agent-org member |
 | `POST /cases/{id}/messages/{mid}/reject` | → `{message, case}` | agent-org member |
+| `POST /auth/wechat/login` | `{js_code}` → `{session_token, user, needs_bind}` | **public** (no auth) |
+| `POST /auth/bind` | `{code}` → `{membership}` | any valid session (membership not required) |
+| `POST /auth/logout` | → `{ok:true}` (revokes the bearer token) | any valid session |
+| `POST /invites` | `{customer_org_id, role}` → 201 `{code, qr_scene}` | member of an **agent** org actively engaged with that customer org |
 | `POST /inbound` | `{eml, to_mailbox, thread_id?}` → `{case_id}` or `{skipped:true}` | webhook secret |
 
 ## Status-code mapping
@@ -61,5 +71,7 @@ stack leak) rather than a dead request thread.
 
 ## Not here / next
 
-Real login (WeChat mini-program / OAuth), rate limiting, TLS termination, and pagination live
-at the gateway / a later slice. Frontends (agent console, customer app) consume this API.
+WeChat login is now **built** (session tokens + invite/bind; see
+`concepts/app/wechat-miniprogram.md`). Still at the gateway / a later slice: OAuth for other
+channels, rate limiting, TLS termination, pagination, and the `X-User-Id` production lock-down.
+Frontends (agent console, customer app, WeChat Mini Program views) consume this API.

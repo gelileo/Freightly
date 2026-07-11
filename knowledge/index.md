@@ -38,8 +38,8 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | [transport-and-config](concepts/app/transport-and-config.md) | MailTransport port + Fake/Gmail, send-on-approval + thread continuity, Gemini/Gmail config factory (Slice 5) | 2026-07-10 |
 | [agent-console](concepts/app/agent-console.md) | Dependency-free HTML+JS agent console (thin API client), served by stdlib server (Slice 6) | 2026-07-11 |
 | [customer-web](concepts/app/customer-web.md) | Customer web + schema-driven intake form engine (issue-types/engagements endpoints, dynamic forms) (Slice 7) | 2026-07-11 |
-| [wechat-miniprogram](concepts/app/wechat-miniprogram.md) | **Reference (not built):** WeChat Mini Program as the customer frontend — dual-thread architecture, ecosystem/review/networking constraints, and exactly how `wx.login`→`code2Session`→openid/unionid auth works (fills the deferred gateway concern) | 2026-07-11 |
-| [wechat-miniprogram.zh](concepts/app/wechat-miniprogram.zh.md) | 中文版:微信小程序作为客户前端——双线程架构、生态/审核/网络约束,及 `wx.login`→`code2Session`→openid/unionid 鉴权全流程 | 2026-07-11 |
+| [wechat-miniprogram](concepts/app/wechat-miniprogram.md) | WeChat Mini Program as the customer frontend — dual-thread architecture, ecosystem/networking constraints, `wx.login`→`code2Session`→openid/unionid auth. **Backend auth adapter built** (`app/wechat.py`, `app/auth.py`); Mini Program views still deferred | 2026-07-11 |
+| [wechat-miniprogram.zh](concepts/app/wechat-miniprogram.zh.md) | 中文版:微信小程序作为客户前端——双线程架构、生态/网络约束、`wx.login`→`code2Session`→openid/unionid 鉴权。**后端鉴权适配器已构建**;视图仍暂缓 | 2026-07-11 |
 
 ## Code modules (governed by the articles above, not separately indexed)
 
@@ -48,6 +48,7 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | `app/db.py`, `app/models.py`, `app/repo.py`, `app/access.py` | identity-model.md, case-workflow.md |
 | `app/cases.py` (state machine, audit, approval), `app/router.py` (intake + inbound) | case-workflow.md |
 | `app/api.py` (`dispatch`), `app/server.py` (http.server shell) | api.md, transport-and-config.md |
+| `app/wechat.py` (`WeChatClient`, Fake/Real), `app/auth.py` (login/session/invite/bind) | wechat-miniprogram.md, identity-model.md |
 | `app/transport.py` (MailTransport, FakeTransport, GmailTransport), `app/config.py` (make_llm/make_transport) | transport-and-config.md |
 | `web/agent/index.html` (agent console), `app/server.py` static-serve route | agent-console.md |
 | `web/customer/index.html` (customer app), `app/forms.py` (form engine) | customer-web.md |
