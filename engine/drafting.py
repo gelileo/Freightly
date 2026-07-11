@@ -11,6 +11,15 @@ from engine.llm import LlmClient
 from engine.validate import validate_draft
 
 
+_SYSTEM = (
+    "You are drafting a concise, professional English email from a freight agent to a freight "
+    "broker. Fill each remaining {slot} using the provided facts and by translating the "
+    "customer's Chinese request into English. Do NOT change the greeting line and do NOT invent "
+    "a recipient name. Never invent BOL/PRO numbers, addresses, dates, or amounts — leave any "
+    "unknown factual slot as [[MISSING: key]]."
+)
+
+
 @dataclass
 class DraftRequest:
     body: str
@@ -51,7 +60,11 @@ def draft(req: DraftRequest, llm: LlmClient) -> DraftResult:
     if not (TEMPLATES_DIR / f"{slug}.md").exists():  # unknown slug (e.g. "other") → safe default
         slug = "pickup"
     template = load_template(slug)
-    raw = llm.generate(system="", template=template, facts=req.facts,
+    # Pre-fill the greeting deterministically so the LLM can't hallucinate a recipient name
+    # (e.g. from the customer's informal address to the agent). Default "team" when the broker
+    # contact isn't known; the router may pass a resolved name via facts["broker_contact"].
+    template = template.replace("{broker_contact}", req.facts.get("broker_contact") or "team")
+    raw = llm.generate(system=_SYSTEM, template=template, facts=req.facts,
                        source_text=req.source_text, target_lang=req.target_lang)
     v = validate_draft(raw, source_text=req.source_text)
     # Deterministically inject the fixed shipper signoff — never trust the LLM for it.

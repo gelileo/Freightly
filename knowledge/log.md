@@ -617,3 +617,13 @@ FakeLlmClient masked; all fixed + tested:
 FOLLOW-UP (logged, human-gate covers it): Gemini sometimes derives the greeting from the
 customer's informal address to the AGENT ("老黄" → "Hi Lao Huang") instead of the broker
 contact/"team". Needs a prompt refinement + broker-contact resolution (default "team" when unknown).
+
+## [2026-07-10] fix | broker-contact greeting hallucination (resolved)
+
+- Root cause: `{broker_contact}` was an unconstrained slot the LLM filled from the customer's
+  text (e.g. "老黄" → "Hi Lao Huang"). Fix: pre-substitute `{broker_contact}` server-side in
+  `draft()` BEFORE the LLM (resolved name, default "team"), + a `_SYSTEM` prompt telling the
+  model not to change the greeting or invent names. Router may pass a resolved name via
+  facts["broker_contact"] (future broker-contact resolution); default "team" for now.
+- Verified live: same input now greets "Hi team,". +2 tests. 87 passed, 1 skipped.
+- (drafting-engine.zh.md not updated — headless-phase EN-only per directive.)
