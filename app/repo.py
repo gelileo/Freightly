@@ -25,12 +25,20 @@ def create_org(conn, name, type, id=None) -> Org:
     return Org(id=oid, name=name, type=type)
 
 
-def create_user(conn, name, auth_kind, auth_id, id=None) -> User:
+def create_user(conn, name, auth_kind, auth_id, id=None, union_id=None) -> User:
     uid = _id(id)
-    conn.execute("INSERT INTO users (id, name, auth_kind, auth_id) VALUES (?, ?, ?, ?)",
-                 (uid, name, auth_kind, auth_id))
+    conn.execute(
+        "INSERT INTO users (id, name, auth_kind, auth_id, union_id) VALUES (?, ?, ?, ?, ?)",
+        (uid, name, auth_kind, auth_id, union_id))
     conn.commit()
-    return User(id=uid, name=name, auth_kind=auth_kind, auth_id=auth_id)
+    return User(id=uid, name=name, auth_kind=auth_kind, auth_id=auth_id, union_id=union_id)
+
+
+def user_by_auth_id(conn, auth_kind, auth_id) -> User | None:
+    row = conn.execute("SELECT * FROM users WHERE auth_kind=? AND auth_id=?",
+                       (auth_kind, auth_id)).fetchone()
+    return User(id=row["id"], name=row["name"], auth_kind=row["auth_kind"],
+                auth_id=row["auth_id"], union_id=row["union_id"]) if row else None
 
 
 def add_member(conn, user_id, org_id, role) -> Membership:

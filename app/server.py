@@ -18,7 +18,8 @@ _FRONTEND_FILES = {
 }
 
 
-def make_handler(conn_factory, llm, transport=None, webhook_secret=None, web_root=None):
+def make_handler(conn_factory, llm, transport=None, webhook_secret=None, web_root=None,
+                 wechat=None):
     """conn_factory() -> a fresh sqlite connection per request (sqlite connections are not
     shareable across threads; ThreadingHTTPServer serves each request on its own thread)."""
 
@@ -36,7 +37,7 @@ def make_handler(conn_factory, llm, transport=None, webhook_secret=None, web_roo
             conn = conn_factory()
             try:
                 resp = dispatch(req, conn=conn, llm=llm, transport=transport,
-                                webhook_secret=webhook_secret)
+                                webhook_secret=webhook_secret, wechat=wechat)
             except Exception:  # controlled 500 — never let the request thread die / leak a trace
                 import traceback
                 traceback.print_exc()  # log server-side (e.g. a real Gmail send failure)
@@ -83,13 +84,14 @@ def make_handler(conn_factory, llm, transport=None, webhook_secret=None, web_roo
 
 
 def serve(conn_factory, llm=None, transport=None, *, host="127.0.0.1", port=8000,
-          webhook_secret=None, web_root=None):
-    if llm is None or transport is None:
+          webhook_secret=None, web_root=None, wechat=None):
+    if llm is None or transport is None or wechat is None:
         from app import config
         llm = llm or config.make_llm()
         transport = transport or config.make_transport()
+        wechat = wechat or config.make_wechat()
     if web_root is None:
         from pathlib import Path
         web_root = str(Path(__file__).resolve().parent.parent / "web")
-    handler = make_handler(conn_factory, llm, transport, webhook_secret, web_root)
+    handler = make_handler(conn_factory, llm, transport, webhook_secret, web_root, wechat)
     ThreadingHTTPServer((host, port), handler).serve_forever()

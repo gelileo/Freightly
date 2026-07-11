@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
     id        TEXT PRIMARY KEY,
     name      TEXT NOT NULL,
     auth_kind TEXT NOT NULL CHECK (auth_kind IN ('wechat', 'phone', 'email')),
-    auth_id   TEXT NOT NULL UNIQUE
+    auth_id   TEXT NOT NULL UNIQUE,
+    union_id  TEXT
 );
 CREATE TABLE IF NOT EXISTS memberships (
     user_id TEXT NOT NULL REFERENCES users(id),
@@ -81,6 +82,24 @@ CREATE TABLE IF NOT EXISTS audit_log (
     to_status   TEXT,
     detail      TEXT,
     at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash  TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id),
+    created_at  TEXT NOT NULL,
+    expires_at  TEXT NOT NULL,
+    revoked     INTEGER NOT NULL DEFAULT 0,
+    session_key TEXT
+);
+CREATE TABLE IF NOT EXISTS invites (
+    code_hash        TEXT PRIMARY KEY,   -- sha256(code); raw code returned once, never stored
+    customer_org_id  TEXT NOT NULL REFERENCES orgs(id),
+    role             TEXT NOT NULL CHECK (role IN ('admin','operator','member')),
+    created_by       TEXT NOT NULL REFERENCES users(id),
+    created_at       TEXT NOT NULL,
+    expires_at       TEXT NOT NULL,
+    consumed_by_user TEXT REFERENCES users(id),
+    consumed_at      TEXT
 );
 """
 

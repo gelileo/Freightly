@@ -49,3 +49,14 @@ def make_transport():
         return GmailTransport(credentials=creds)
     from app.transport import FakeTransport
     return FakeTransport()
+
+
+def make_wechat():
+    load_env()
+    appid = os.environ.get("WECHAT_APPID")
+    secret = os.environ.get("WECHAT_SECRET")
+    if appid and secret:
+        from app.wechat import RealWeChatClient
+        return RealWeChatClient(appid, secret)
+    from app.wechat import FakeWeChatClient
+    return FakeWeChatClient()

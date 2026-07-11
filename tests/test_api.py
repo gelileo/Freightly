@@ -3,8 +3,10 @@ from app import repo
 from app.api import Request, dispatch
 from engine.llm import FakeLlmClient
 from app.transport import FakeTransport
+from app.wechat import FakeWeChatClient
 
 LLM = FakeLlmClient()
+WX = FakeWeChatClient()
 SECRET = "s3cr3t"
 
 
@@ -26,7 +28,7 @@ def _net():
 def _d(c, method, path, user=None, body=None, headers=None, transport=None):
     return dispatch(Request(method=method, path=path, user_id=user, headers=headers or {},
                             body=body or {}), conn=c, llm=LLM,
-                    transport=transport or FakeTransport(), webhook_secret=SECRET)
+                    transport=transport or FakeTransport(), webhook_secret=SECRET, wechat=WX)
 
 
 def test_unknown_route_and_auth():
@@ -195,3 +197,71 @@ def test_malformed_requests_are_400_not_crashes():
     r = dispatch(Request(method="POST", path="/cases", user_id="uc", body=["not", "a", "dict"]),
                  conn=c, llm=LLM, webhook_secret=SECRET)
     assert r.status == 400
+
+
+def test_wechat_login_bind_and_session_auth_end_to_end():
+    c = _net()  # org 'agent'+'cust', engagement 'eng' active, broker acct 'ba'
+    # agent operator issues an invite for the customer org
+    inv = _d(c, "POST", "/invites", user="op",
+             body={"customer_org_id": "cust", "role": "member"})
+    assert inv.status == 201
+    code = inv.body["code"]
+    # a WeChat customer logs in (no membership yet)
+    login = _d(c, "POST", "/auth/wechat/login", body={"js_code": "alice"})
+    assert login.status == 200 and login.body["needs_bind"] is True
+    token = login.body["session_token"]
+    auth_hdr = {"Authorization": f"Bearer {token}"}
+    # the session token authenticates (no X-User-Id) — before binding, sees no cases
+    pre = _d(c, "GET", "/cases", headers=auth_hdr)
+    assert pre.status == 200 and pre.body["cases"] == []
+    # bind consumes the invite -> membership
+    b = _d(c, "POST", "/auth/bind", headers=auth_hdr, body={"code": code})
+    assert b.status == 200 and b.body["membership"]["org_id"] == "cust"
+    # now a case opened for that customer org is visible via the session token
+    cid = _open_case(c, "uc").body["case"]["id"]
+    seen = _d(c, "GET", "/cases", headers=auth_hdr).body["cases"]
+    assert any(x["id"] == cid for x in seen)
+
+
+def test_invalid_and_revoked_bearer_tokens_401():
+    c = _net()
+    assert _d(c, "GET", "/cases", headers={"Authorization": "Bearer garbage"}).status == 401
+    token = _d(c, "POST", "/auth/wechat/login", body={"js_code": "z"}).body["session_token"]
+    hdr = {"Authorization": f"Bearer {token}"}
+    assert _d(c, "GET", "/cases", headers=hdr).status == 200
+    assert _d(c, "POST", "/auth/logout", headers=hdr).status == 200
+    assert _d(c, "GET", "/cases", headers=hdr).status == 401           # revoked
+
+
+def test_bad_bearer_does_not_fall_through_to_x_user_id():
+    # a bad Bearer token must NOT silently fall through to a valid X-User-Id on a protected route
+    c = _net()
+    r = _d(c, "GET", "/cases", user="op", headers={"Authorization": "Bearer garbage"})
+    assert r.status == 401
+
+
+def test_stale_bearer_on_public_login_still_works():
+    # a Mini Program interceptor attaches the stored (now-expired/revoked) token to EVERY request;
+    # the re-login call must still succeed rather than wedge at 401
+    c = _net()
+    token = _d(c, "POST", "/auth/wechat/login", body={"js_code": "z"}).body["session_token"]
+    _d(c, "POST", "/auth/logout", headers={"Authorization": f"Bearer {token}"})
+    again = _d(c, "POST", "/auth/wechat/login", body={"js_code": "z"},
+               headers={"Authorization": f"Bearer {token}"})   # stale token still attached
+    assert again.status == 200 and again.body["session_token"] != token
+
+
+def test_invites_agent_only():
+    c = _net()
+    # a customer-org member may not issue invites
+    assert _d(c, "POST", "/invites", user="uc",
+              body={"customer_org_id": "cust", "role": "member"}).status == 403
+    # an unrelated agent org may not either
+    assert _d(c, "POST", "/invites", user="ox",
+              body={"customer_org_id": "cust", "role": "member"}).status == 403
+
+
+def test_login_bad_code_400():
+    c = _net()
+    assert _d(c, "POST", "/auth/wechat/login", body={"js_code": "bad"}).status == 400
+    assert _d(c, "POST", "/auth/wechat/login", body={}).status == 400

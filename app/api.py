@@ -51,7 +51,7 @@ def _member_of(conn, user_id, org_id) -> bool:
 
 # --- handlers -------------------------------------------------------------------
 
-def _create_case(req, conn, llm, transport, m, _secret) -> Response:
+def _create_case(req, conn, llm, transport, wechat, m, _secret) -> Response:
     b = req.body
     eng = conn.execute(
         "SELECT customer_org_id, agent_org_id FROM engagements WHERE id=?",
@@ -74,7 +74,7 @@ def _create_case(req, conn, llm, transport, m, _secret) -> Response:
                           "messages": _messages(conn, case.id, agent_view)})
 
 
-def _get_case(req, conn, llm, transport, m, _secret) -> Response:
+def _get_case(req, conn, llm, transport, wechat, m, _secret) -> Response:
     cid = m.group("cid")
     case = cases.get_case(conn, cid)
     if case is None:
@@ -87,7 +87,7 @@ def _get_case(req, conn, llm, transport, m, _secret) -> Response:
                           "messages": _messages(conn, cid, agent_view)})
 
 
-def _list_cases(req, conn, llm, transport, m, _secret) -> Response:
+def _list_cases(req, conn, llm, transport, wechat, m, _secret) -> Response:
     out = []
     for r in conn.execute("SELECT id FROM cases ORDER BY rowid"):
         if user_may_access_case(conn, req.user_id, r["id"]):
@@ -95,12 +95,12 @@ def _list_cases(req, conn, llm, transport, m, _secret) -> Response:
     return Response(200, {"cases": out})
 
 
-def _issue_types(req, conn, llm, transport, m, _secret) -> Response:
+def _issue_types(req, conn, llm, transport, wechat, m, _secret) -> Response:
     from app import forms
     return Response(200, {"issue_types": forms.issue_types()})
 
 
-def _engagements(req, conn, llm, transport, m, _secret) -> Response:
+def _engagements(req, conn, llm, transport, wechat, m, _secret) -> Response:
     """The caller's ACTIVE engagements (as a customer-org member), each with the agent name and
     that agent's broker accounts — so a customer can pick agent + broker when starting a case."""
     rows = conn.execute(
@@ -119,7 +119,7 @@ def _engagements(req, conn, llm, transport, m, _secret) -> Response:
     return Response(200, {"engagements": out})
 
 
-def _get_audit(req, conn, llm, transport, m, _secret) -> Response:
+def _get_audit(req, conn, llm, transport, wechat, m, _secret) -> Response:
     cid = m.group("cid")
     if cases.get_case(conn, cid) is None:
         return Response(404, {"error": "not found"})
@@ -129,7 +129,7 @@ def _get_audit(req, conn, llm, transport, m, _secret) -> Response:
 
 
 def _message_action(action):
-    def handler(req, conn, llm, transport, m, _secret) -> Response:
+    def handler(req, conn, llm, transport, wechat, m, _secret) -> Response:
         cid, mid = m.group("cid"), m.group("mid")
         case = cases.get_case(conn, cid)
         if case is None:
@@ -197,7 +197,7 @@ def _approve_and_maybe_send(conn, transport, case, msg, actor) -> None:
         raise
 
 
-def _inbound(req, conn, llm, transport, m, secret) -> Response:
+def _inbound(req, conn, llm, transport, wechat, m, secret) -> Response:
     given = req.headers.get("X-Webhook-Secret", "")
     if not secret or not hmac.compare_digest(str(given), str(secret)):
         return Response(401, {"error": "bad webhook secret"})
@@ -216,6 +216,58 @@ def _inbound(req, conn, llm, transport, m, secret) -> Response:
     return Response(200, {"case_id": case.id})
 
 
+# --- auth / invites (WeChat-login adapter) --------------------------------------
+
+def _auth_wechat_login(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    from app import auth
+    js_code = req.body.get("js_code")
+    if not js_code:
+        return Response(400, {"error": "js_code required"})
+    try:
+        token, user, needs_bind = auth.login_wechat(conn, wechat, js_code)
+    except ValueError as e:
+        return Response(400, {"error": str(e)})
+    return Response(200, {"session_token": token, "user": asdict(user),
+                          "needs_bind": needs_bind})
+
+
+def _auth_bind(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    from app import auth
+    code = req.body.get("code")
+    if not code:
+        return Response(400, {"error": "code required"})
+    try:
+        mem = auth.bind_via_invite(conn, user_id=req.user_id, code=code)
+    except ValueError as e:
+        return Response(409, {"error": str(e)})
+    return Response(200, {"membership": asdict(mem)})
+
+
+def _auth_logout(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    from app import auth
+    ah = req.headers.get("Authorization", "")
+    if ah.startswith("Bearer "):
+        auth.revoke_session(conn, ah[len("Bearer "):])
+    return Response(200, {"ok": True})
+
+
+def _create_invite(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    from app import auth
+    b = req.body
+    cust = b.get("customer_org_id")
+    role = b.get("role", "member")
+    if not cust:
+        return Response(400, {"error": "customer_org_id required"})
+    if role not in ("admin", "operator", "member"):
+        return Response(400, {"error": "bad role"})
+    # caller must belong to an agent org actively engaged with this customer org
+    agents = repo.active_agents_for_customer(conn, cust)
+    if not any(repo.is_member(conn, req.user_id, a) for a in agents):
+        return Response(403, {"error": "forbidden"})
+    code = auth.create_invite(conn, customer_org_id=cust, role=role, created_by=req.user_id)
+    return Response(201, {"code": code, "qr_scene": code})
+
+
 # --- routing --------------------------------------------------------------------
 
 _ROUTES = [
@@ -231,21 +283,43 @@ _ROUTES = [
      _message_action("edit"), True),
     ("POST", re.compile(r"^/cases/(?P<cid>[^/]+)/messages/(?P<mid>[^/]+)/reject$"),
      _message_action("reject"), True),
+    ("POST", re.compile(r"^/auth/wechat/login$"), _auth_wechat_login, False),
+    ("POST", re.compile(r"^/auth/bind$"), _auth_bind, True),
+    ("POST", re.compile(r"^/auth/logout$"), _auth_logout, True),
+    ("POST", re.compile(r"^/invites$"), _create_invite, True),
     ("POST", re.compile(r"^/inbound$"), _inbound, False),  # webhook: no user auth
 ]
 
 
-def dispatch(req: Request, *, conn, llm, transport=None, webhook_secret=None) -> Response:
+def dispatch(req: Request, *, conn, llm, transport=None, webhook_secret=None,
+             wechat=None) -> Response:
     path = req.path.split("?", 1)[0]
+    # Resolve a Bearer session token to a user_id (real clients). A valid token sets the identity;
+    # a present-but-invalid token is a *bad* credential — never a silent fall-through to the legacy
+    # X-User-Id header. We defer the 401 until after route matching, though, so a public route
+    # (e.g. /auth/wechat/login) still works when a client's global interceptor attaches a stale
+    # token to the very request meant to re-login. On a protected route a bad token hard-401s.
+    auth_header = req.headers.get("Authorization", "")
+    bearer_present = auth_header.startswith("Bearer ")
+    bearer_bad = False
+    if bearer_present:
+        from app import auth
+        uid = auth.resolve_session(conn, auth_header[len("Bearer "):])
+        if uid is None:
+            bearer_bad = True
+        else:
+            req.user_id = uid
     for method, rx, handler, needs_user in _ROUTES:
         if method != req.method:
             continue
         m = rx.match(path)
         if not m:
             continue
+        if bearer_bad and needs_user:  # bad token on a protected route: reject, no fall-through
+            return Response(401, {"error": "invalid or expired session"})
         if needs_user and not req.user_id:
             return Response(401, {"error": "missing X-User-Id"})
         if not isinstance(req.body, dict):
             return Response(400, {"error": "request body must be a JSON object"})
-        return handler(req, conn, llm, transport, m, webhook_secret)
+        return handler(req, conn, llm, transport, wechat, m, webhook_secret)
     return Response(404, {"error": "no such route"})

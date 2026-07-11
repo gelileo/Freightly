@@ -9,6 +9,7 @@ affects:
   - app/models.py
   - app/repo.py
   - app/access.py
+  - app/auth.py
 ---
 
 # Identity & Relationship Model
@@ -20,7 +21,9 @@ headless; Postgres is a later migration (swap `app/db.py`'s DDL/driver — the r
 ## Entities (schema in `app/db.py`; dataclasses in `app/models.py`)
 
 - **Org** — `type ∈ {customer, agent}`. The account unit; individuals are orgs of size 1.
-- **User** — `auth_kind ∈ {wechat, phone, email}`, unique `auth_id`.
+- **User** — `auth_kind ∈ {wechat, phone, email}`, unique `auth_id`, nullable `union_id`. For a
+  WeChat user, `auth_id` is the `openid` and `union_id` is the (optional) cross-property identity;
+  `repo.user_by_auth_id` looks a user up by `(auth_kind, auth_id)` for login upsert.
 - **Membership** — `User × Org × role(admin|operator|member)`.
 - **Engagement** — customer-org ↔ agent-org, `status ∈ {pending, active, revoked}`. Created
   `pending` (invite/request), `approve_engagement` → `active`, `revoke_engagement` → `revoked`.
@@ -52,8 +55,29 @@ The M:N network is isolated by relationship, not by per-org DB:
 in `c1` cannot access `c2↔a2`, and pending/revoked engagements grant no access. See
 `tests/test_access.py`.
 
+## WeChat login: sessions & invites (`app/auth.py`)
+
+The WeChat-login adapter (`docs/superpowers/specs/2026-07-11-wechat-login-adapter-design.md`)
+extends this model without changing the access boundary above — a WeChat login only *produces* a
+`user_id`, and bind only *adds a membership*; everything downstream is the same relationship-scoped
+access.
+
+- **sessions** — `token_hash` (PK, `sha256` of an opaque `secrets.token_urlsafe(32)`; the raw token
+  is returned to the client once and never stored), `user_id`, `created_at`, `expires_at`,
+  `revoked`, `session_key` (WeChat `session_key`, server-only, for future phone decrypt).
+  `resolve_session` returns a `user_id` only when not revoked and not expired; `revoke_session`
+  (logout) sets `revoked=1`. Time is injectable for deterministic tests.
+- **invites** — `code_hash` (PK, `sha256` of a **128-bit** `secrets.token_urlsafe(16)`; raw code
+  returned once, QR-scene-sized ≤32 chars), `customer_org_id`, `role`, `created_by`, `created_at`,
+  `expires_at`, `consumed_by_user`, `consumed_at`. **Single-use, agent-issued.** `create_invite`
+  mints one; `bind_via_invite` validates (exists/unexpired/unconsumed) and, in **one transaction**,
+  consumes it (guarded by `WHERE consumed_by_user IS NULL`) and adds the membership — so a WeChat
+  user joins the agent-provisioned customer org and immediately sees its cases via the existing
+  active engagement.
+
+Both credentials follow the same rule: strong random value, stored hashed, raw value revealed once.
+
 ## Not in this slice
 
-Cases, messages, the case state machine, audit log, and the inbound router are Slice 3;
-the API server and console are later. This slice is exercised only through the repo/access
-functions (no HTTP surface yet).
+The case state machine, audit log, and inbound router are Slice 3; the API server and console are
+later. Sessions/invites arrived with the WeChat-login adapter (2026-07-11).
