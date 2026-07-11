@@ -38,9 +38,11 @@ status=pending_approval`) holding the summary, then advances the case to `PENDIN
 ## Approval gate & display
 
 The ZH summary is `pending_approval` — the agent approves (or edits/rejects) it in the console;
-approving an app-channel message posts it (`POSTED_TO_CUSTOMER`). The **customer app**
-(`/customer`) shows only `channel=app, lang=zh, status=posted` messages as the update feed —
-never the internal English drafts. So the customer sees only agent-approved Chinese updates.
+approving an app-channel message posts it (`POSTED_TO_CUSTOMER`). Filtering is **enforced
+server-side**: `GET /cases/{id}` returns only `channel=app, lang=zh, status=posted` messages to
+a customer-side caller (`app/api._get_case`/`_messages`); the internal English drafts and raw
+received broker mail are **never emitted over the API** to the customer, not merely hidden by the
+web client. So the customer sees only agent-approved Chinese updates.
 
 ## Verified live
 

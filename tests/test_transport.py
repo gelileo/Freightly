@@ -50,7 +50,10 @@ def _open_case(c, t):
     r = _d(c, "POST", "/cases", user="uc", t=t, body={
         "engagement_id": "eng", "broker_account_id": "ba", "bol": "60114338678",
         "issue_type": "pickup", "wechat_text": "请尽快提货"})
-    return r.body["case"]["id"], r.body["messages"][0]["id"]
+    cid = r.body["case"]["id"]
+    # the internal English draft is withheld from the customer's response; fetch it as the agent
+    mid = _d(c, "GET", f"/cases/{cid}", user="op", t=t).body["messages"][0]["id"]
+    return cid, mid
 
 
 def test_send_on_approval_and_thread_continuity():

@@ -8,9 +8,9 @@ Two entry points:
 Both produce ONLY pending_approval drafts (never sent/posted — that needs cases.approve_message).
 `triage=skip` inbound creates nothing.
 
-Scope note (Slice 3): drafts here are broker-facing English (the engine's competency). The
-customer-facing Chinese posting (summarizing a broker reply back to the customer) needs a
-dedicated engine 'summarize→ZH' capability + the customer app — deferred to a later slice."""
+Broker-facing drafts are English (the engine's competency). A matched-thread broker reply is
+also relayed to the customer as an approval-gated Chinese message via
+`engine.drafting.summarize_for_customer` (Slice 8)."""
 from __future__ import annotations
 
 import json
