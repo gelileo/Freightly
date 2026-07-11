@@ -75,6 +75,25 @@ def test_send_on_approval_and_thread_continuity():
     assert c.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 1
 
 
+class _RaisingTransport:
+    def send(self, **kw):
+        raise RuntimeError("SMTP connection refused")
+
+
+def test_send_failure_leaves_state_untouched():
+    # If transport.send raises, nothing is marked sent and no thread/mail id is stamped.
+    c = _net(); t = FakeTransport()
+    cid, mid = _open_case(c, t)
+    import pytest
+    with pytest.raises(RuntimeError):
+        # dispatch has no try/except; the server shell turns this into a controlled 500.
+        _d(c, "POST", f"/cases/{cid}/messages/{mid}/approve", user="op", t=_RaisingTransport())
+    assert c.execute("SELECT status FROM messages WHERE id=?", (mid,)).fetchone()[0] == "pending_approval"
+    row = c.execute("SELECT status, mail_thread_id FROM cases WHERE id=?", (cid,)).fetchone()
+    assert row[0] == "PENDING_APPROVAL" and row[1] is None
+    assert c.execute("SELECT mail_message_id FROM messages WHERE id=?", (mid,)).fetchone()[0] is None
+
+
 def test_approval_without_recipient_is_409_and_sends_nothing():
     c = connect(":memory:"); init_db(c)
     repo.create_org(c, "Cust", "customer", id="cust"); repo.create_org(c, "Agent", "agent", id="agent")

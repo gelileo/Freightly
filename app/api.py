@@ -126,21 +126,37 @@ def _approve_and_maybe_send(conn, transport, case, msg, actor) -> None:
         return
     acct = repo.broker_account(conn, case.broker_account_id) if case.broker_account_id else None
     to = acct.broker_email if acct else None
+    from_addr = acct.mailbox if acct else None
     if not to:
         raise ValueError("no broker recipient configured for this case")
+    if not from_addr:
+        raise ValueError("no sending mailbox configured for this case")
     if transport is None:
         raise ValueError("no mail transport configured")
-    cases._check_transition(case.status, "SENT_TO_BROKER")  # validate before sending
+    if msg.status != "pending_approval":
+        raise ValueError(f"cannot approve message in status {msg.status!r}")
+    # Validate BOTH transitions before any network call, so a legal send commits fully.
+    cases._check_transition(case.status, "SENT_TO_BROKER")
+    cases._check_transition("SENT_TO_BROKER", "AWAITING_BROKER")
     subject = f"{case.issue_type or 'Shipment'} --- {case.shipment_bol or ''}".strip()
-    ref = transport.send(from_addr=(acct.mailbox or ""), to=to, subject=subject, body=msg.body,
+    # Network send first: if it raises, nothing below runs → message stays pending_approval.
+    ref = transport.send(from_addr=from_addr, to=to, subject=subject, body=msg.body,
                          thread_id=case.mail_thread_id, in_reply_to=msg.in_reply_to)
-    cases.approve_message(conn, msg.id, actor)  # marks sent + transition + audit
-    conn.execute("UPDATE messages SET mail_message_id=? WHERE id=?", (ref.message_id, msg.id))
-    if not case.mail_thread_id:
-        conn.execute("UPDATE cases SET mail_thread_id=? WHERE id=?", (ref.thread_id, case.id))
-    conn.commit()
-    # having sent, the case now awaits the broker's reply (a threaded reply → REPLY_DRAFTED)
-    cases.transition(conn, case.id, "AWAITING_BROKER", actor, "awaiting_broker_reply")
+    # All post-send bookkeeping in ONE transaction (message sent + both transitions + thread
+    # stamp) so a crash can't strand the case at SENT_TO_BROKER with no thread id.
+    try:
+        conn.execute("UPDATE messages SET status='sent', mail_message_id=? WHERE id=?",
+                     (ref.message_id, msg.id))
+        cases._apply_transition(conn, case.id, case.status, "SENT_TO_BROKER", actor,
+                                "approve_message:sent")
+        cases._apply_transition(conn, case.id, "SENT_TO_BROKER", "AWAITING_BROKER", actor,
+                                "awaiting_broker_reply")
+        if not case.mail_thread_id:
+            conn.execute("UPDATE cases SET mail_thread_id=? WHERE id=?", (ref.thread_id, case.id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
 
 def _inbound(req, conn, llm, transport, m, secret) -> Response:

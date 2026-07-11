@@ -40,8 +40,14 @@ guarded and never imported/hit without creds (CI stays hermetic).
   nullable column distinct from the routing `mailbox`). Validate the transition, then
   `transport.send(...)` → mark sent (`cases.approve_message`) → stamp `messages.mail_message_id`
   and (if unset) `cases.mail_thread_id` → advance the case to **AWAITING_BROKER**.
-- Missing recipient/transport or illegal transition → `ValueError` → **409**, nothing sent,
-  message stays `pending_approval`.
+- Missing recipient/**sending mailbox**/transport or illegal transition → `ValueError` → **409**,
+  nothing sent, message stays `pending_approval`.
+- **Atomicity:** the network send happens first (if it raises, nothing is written — message
+  stays `pending_approval`, verified by `test_send_failure_leaves_state_untouched`); all
+  post-send bookkeeping (message→sent, `SENT_TO_BROKER`→`AWAITING_BROKER` transitions, mail-id +
+  thread-id stamps) runs in **one transaction** with rollback-on-error, so a crash can't strand
+  the case mid-way. Unexpected send failures are logged server-side (traceback) and returned as
+  a controlled 500.
 
 **Thread continuity (tested):** the send stamps `case.mail_thread_id`; a broker reply ingested
 with that `thread_id` matches the same case (→ REPLY_DRAFTED → new draft), closing the

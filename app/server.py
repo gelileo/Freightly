@@ -30,6 +30,8 @@ def make_handler(conn_factory, llm, transport=None, webhook_secret=None):
                 resp = dispatch(req, conn=conn, llm=llm, transport=transport,
                                 webhook_secret=webhook_secret)
             except Exception:  # controlled 500 — never let the request thread die / leak a trace
+                import traceback
+                traceback.print_exc()  # log server-side (e.g. a real Gmail send failure)
                 resp = Response(500, {"error": "internal error"})
             finally:
                 conn.close()
