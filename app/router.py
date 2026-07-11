@@ -17,7 +17,7 @@ import json
 
 from scripts.parse_eml import parse_eml
 from scripts.triage import triage
-from app import repo, cases
+from app import repo, cases, forms
 from app.models import Case
 from engine.drafting import DraftRequest, draft as engine_draft
 
@@ -30,12 +30,16 @@ def _classification_json(result) -> str:
 
 
 def open_customer_case(conn, *, engagement_id, broker_account_id, bol, pro, issue_type,
-                       wechat_text, llm) -> Case:
+                       wechat_text, llm, fields=None) -> Case:
     row = conn.execute(
         "SELECT customer_org_id, agent_org_id, status FROM engagements WHERE id=?",
         (engagement_id,)).fetchone()
     if row is None or row["status"] != "active":
         raise ValueError("engagement is not active")
+    if broker_account_id is not None:  # the broker account must belong to THIS engagement's agent
+        acct = repo.broker_account(conn, broker_account_id)
+        if acct is None or acct.agent_org_id != row["agent_org_id"]:
+            raise ValueError("broker_account_id does not belong to the engagement's agent")
     case = cases.create_case(conn, agent_org_id=row["agent_org_id"],
                              customer_org_id=row["customer_org_id"], origin="customer",
                              broker_account_id=broker_account_id, bol=bol, pro=pro,
@@ -47,7 +51,16 @@ def open_customer_case(conn, *, engagement_id, broker_account_id, bol, pro, issu
         facts["BOL"] = bol
     if pro:
         facts["PRO"] = pro
-    # Trusted structured fields (BOL/PRO) come from the form, not the free text — fold them into
+    # Whitelist fields to the chosen issue type's schema — a client cannot inject arbitrary
+    # factual slots (charge_ref, etc.) or override the trusted BOL/PRO (never in a schema),
+    # which would otherwise defeat the anti-fabrication validator (fields also land in
+    # source_text). Non-factual request fields (requested_window, …) are the customer's own
+    # authoritative input, so self-asserting them is legitimate.
+    allowed = {f["name"] for f in forms.FORM_SCHEMAS.get(issue_type or "", [])}
+    for k, v in (fields or {}).items():
+        if k in allowed and v not in (None, ""):
+            facts[k] = v
+    # Trusted structured fields come from the form, not the free text — fold them into
     # source_text so the anti-fabrication validator accepts them (they ARE ground truth here).
     source_text = wechat_text + "".join(f"\n{k}: {v}" for k, v in facts.items())
     req = DraftRequest(body=wechat_text, sender="customer", subject=subject, facts=facts,

@@ -648,3 +648,30 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   markMissing() (a textarea can't render HTML). Browser-verified the panel renders.
 - Empty-draft guard: approve/edit abort with "draft is empty" instead of sending a blank email.
 - 88 passed, 1 skipped.
+
+## [2026-07-11] compile | customer web + intake form engine (frontend Slice 7)
+
+- `app/forms.py`: schema-driven intake form engine (FORM_SCHEMAS per issue slug; field names ==
+  template slots; issue_types()). Single source of truth; adding a type is a data change.
+- API: GET /issue-types, GET /engagements (customer's active engagements + agent's brokers,
+  scoped), POST /cases gains optional `fields` → open_customer_case(fields=) merges into
+  facts+source_text (field flows into the draft).
+- `web/customer/index.html` served at /customer (server generalized to a web_root + route map,
+  agent console stays at /): login, My cases (friendly Chinese status, no English bodies),
+  New case (agent/broker/issue selects → dynamic category fields → submit). XSS-escaped.
+- VERIFIED in a real browser (Playwright): customer logs in → New case → Delivery window →
+  fill requested_window + BOL → submit → case shows as "代理审核中"; drafted broker email
+  contains the submitted window. 93 passed, 1 skipped. Dual-language doc: customer-web.md(+.zh).
+- Deferred: customer-facing ZH summaries (engine summarize→ZH); WeChat Mini Program.
+
+## [2026-07-11] fix | customer-web review findings (fields forgery + cross-agent broker)
+
+- CRITICAL fixed: `fields` are now whitelisted to the chosen issue type's FORM_SCHEMAS field
+  names in open_customer_case — a client can no longer override the trusted BOL/PRO (never in a
+  schema) or inject off-schema factual slots (charge_ref, …) that would tautologically pass the
+  anti-fabrication validator. Legit schema fields (customer's own request details) still flow.
+- Important fixed: open_customer_case validates broker_account_id belongs to the engagement's
+  agent org (was a cross-agent leak, now reachable via GET /engagements) → 400 otherwise.
+- Important fixed: added ISSUE_LABELS["pro-lookup"] so the customer menu offers it.
+- Minor: dropped double-esc() on customer textContent error assignments.
+- +2 regression tests (forged fields dropped; cross-agent broker rejected). 95 passed, 1 skipped.

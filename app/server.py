@@ -10,10 +10,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from app.api import Request, Response, dispatch
 
 
-_FRONTEND_ROUTES = {"/", "/console", "/index.html"}
+# frontend route → file relative to the web root
+_FRONTEND_FILES = {
+    "/": "agent/index.html", "/agent": "agent/index.html", "/index.html": "agent/index.html",
+    "/console": "agent/index.html",
+    "/customer": "customer/index.html", "/customer/": "customer/index.html",
+}
 
 
-def make_handler(conn_factory, llm, transport=None, webhook_secret=None, static_dir=None):
+def make_handler(conn_factory, llm, transport=None, webhook_secret=None, web_root=None):
     """conn_factory() -> a fresh sqlite connection per request (sqlite connections are not
     shareable across threads; ThreadingHTTPServer serves each request on its own thread)."""
 
@@ -52,15 +57,15 @@ def make_handler(conn_factory, llm, transport=None, webhook_secret=None, static_
             path = self.path.split("?", 1)[0]
             if path == "/favicon.ico":
                 self.send_response(204); self.end_headers(); return
-            if static_dir and path in _FRONTEND_ROUTES:
-                return self._serve_console()
+            if web_root and path in _FRONTEND_FILES:
+                return self._serve_page(_FRONTEND_FILES[path])
             self._handle("GET")
 
-        def _serve_console(self):
+        def _serve_page(self, rel):
             from pathlib import Path
-            f = Path(static_dir) / "index.html"
+            f = Path(web_root) / rel
             if not f.exists():
-                return self._write(404, {"error": "console not found"})
+                return self._write(404, {"error": "page not found"})
             data = f.read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -78,13 +83,13 @@ def make_handler(conn_factory, llm, transport=None, webhook_secret=None, static_
 
 
 def serve(conn_factory, llm=None, transport=None, *, host="127.0.0.1", port=8000,
-          webhook_secret=None, static_dir=None):
+          webhook_secret=None, web_root=None):
     if llm is None or transport is None:
         from app import config
         llm = llm or config.make_llm()
         transport = transport or config.make_transport()
-    if static_dir is None:
+    if web_root is None:
         from pathlib import Path
-        static_dir = str(Path(__file__).resolve().parent.parent / "web" / "agent")
-    handler = make_handler(conn_factory, llm, transport, webhook_secret, static_dir)
+        web_root = str(Path(__file__).resolve().parent.parent / "web")
+    handler = make_handler(conn_factory, llm, transport, webhook_secret, web_root)
     ThreadingHTTPServer((host, port), handler).serve_forever()
