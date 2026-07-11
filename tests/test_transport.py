@@ -111,3 +111,53 @@ def test_approval_without_recipient_is_409_and_sends_nothing():
     assert r.status == 409
     assert t.sent == []  # nothing sent
     assert c.execute("SELECT status FROM messages WHERE id=?", (mid,)).fetchone()[0] == "pending_approval"
+
+
+from app.transport import AlibabaSmtpTransport
+
+
+class FakeSmtp:
+    def __init__(self): self.logged_in = None; self.sent = []
+    def login(self, addr, pw): self.logged_in = (addr, pw)
+    def send_message(self, msg): self.sent.append(msg)
+    def quit(self): pass
+
+
+def test_alibaba_smtp_sends_with_threading_headers():
+    fake = FakeSmtp()
+    t = AlibabaSmtpTransport(address="hs@justnanoinc.com", password="pw16",
+                             smtp_factory=lambda h, p: fake)
+    ref = t.send(from_addr="hs@justnanoinc.com", to="broker@x.com", subject="BOL 1",
+                 body="hi", thread_id=None, in_reply_to=None)
+    assert fake.logged_in == ("hs@justnanoinc.com", "pw16")
+    msg = fake.sent[0]
+    assert msg["From"] == "hs@justnanoinc.com" and msg["To"] == "broker@x.com"
+    assert msg["Message-ID"] and ref.message_id == msg["Message-ID"]
+    assert ref.thread_id == ref.message_id
+    ref2 = t.send(from_addr="hs@justnanoinc.com", to="broker@x.com", subject="Re",
+                  body="more", thread_id=ref.message_id, in_reply_to=ref.message_id)
+    m2 = fake.sent[1]
+    assert m2["In-Reply-To"] == ref.message_id and m2["References"] == ref.message_id
+    assert ref2.thread_id == ref.message_id
+
+
+def test_alibaba_smtp_rejects_wrong_from():
+    import pytest
+    t = AlibabaSmtpTransport(address="hs@justnanoinc.com", password="pw",
+                             smtp_factory=lambda h, p: FakeSmtp())
+    with pytest.raises(ValueError):
+        t.send(from_addr="someone@else.com", to="b@x.com", subject="s", body="b")
+
+
+import os as _os
+import pytest as _pytest
+
+
+@_pytest.mark.skipif(not _os.environ.get("SMTP_PASSWORD"), reason="no SMTP_PASSWORD; skip live SMTP")
+def test_live_smtp_login_only():
+    import smtplib
+    from app.config import load_env
+    load_env()
+    with smtplib.SMTP_SSL("smtp.qiye.aliyun.com", 465, timeout=25) as s:
+        s.login(_os.environ.get("SMTP_ADDRESS", "hs@justnanoinc.com"), _os.environ["SMTP_PASSWORD"])
+    # login only — no message sent

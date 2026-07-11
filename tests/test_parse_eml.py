@@ -99,3 +99,24 @@ def test_write_case_creates_thread_file(tmp_path, sample_pickup):
     assert out == tmp_path / "60114338678" / "thread.md"
     assert out.exists()
     assert "60114338678" in out.read_text()
+
+
+from scripts.parse_eml import parse_eml_bytes
+
+
+def test_parse_from_bytes_matches_path(sample_pickup):
+    raw = sample_pickup.read_bytes()
+    a, b = parse_eml(sample_pickup), parse_eml_bytes(raw)
+    assert a.body == b.body and a.bol == b.bol and a.subject == b.subject
+
+
+def test_parse_bytes_reads_threading_headers():
+    raw = (b"Message-ID: <abc@justnanoinc.com>\r\n"
+           b"In-Reply-To: <root@justnanoinc.com>\r\n"
+           b"References: <root@justnanoinc.com>\r\n"
+           b"Subject: Re: BOL 60114821897\r\nFrom: broker@example.com\r\n\r\n"
+           b"Hello, per your BOL 60114821897.\r\n")
+    pe = parse_eml_bytes(raw)
+    assert pe.message_id == "<abc@justnanoinc.com>"
+    assert pe.in_reply_to == "<root@justnanoinc.com>"
+    assert pe.references == "<root@justnanoinc.com>"
