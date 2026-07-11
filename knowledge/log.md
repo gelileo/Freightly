@@ -596,3 +596,24 @@ actually used, and closed it as **won't-fix**. Reasoning:
 - `google-genai` is not a system/CI dependency (fakes cover tests); use a gitignored `.venv`
   for real runs. Full suite stays hermetic on system python: 81 passed, 1 skipped.
 - Secret hygiene: `.env` and `.venv` added to `.gitignore`; neither tracked/staged.
+
+## [2026-07-10] fix | real-Gemini live-run findings (drafting quality)
+
+Running the full stack against REAL Gemini (not the fake) surfaced 3 correctness bugs the
+FakeLlmClient masked; all fixed + tested:
+- **Wrong template:** customer-declared issue type was thrown away — open_customer_case
+  synthesized a "delivery-window --- …" subject that classify_issue (matches "delivery window",
+  space) couldn't map, falling back to pickup. Added `DraftRequest.issue_override`; the customer
+  path now honors the picked type. Unknown/`other` slug → safe pickup fallback (template-exists guard).
+- **BOL dropped as [[MISSING]]:** trusted structured facts (BOL/PRO from the form) weren't in
+  source_text, so the anti-fabrication validator rejected them. open_customer_case now folds
+  facts into source_text.
+- **Broken signoff:** `{shipper_signoff}` was left to the LLM (→ [[MISSING]]). Now injected
+  deterministically from `engine.knowledge.SHIPPER_SIGNOFF` (single-agent default; per-agent
+  override later).
+- Verified live: ZH ("6号中午前直送，不用预约") → EN delivery-window draft, BOL+PRO filled,
+  signoff present. 85 passed, 1 skipped.
+
+FOLLOW-UP (logged, human-gate covers it): Gemini sometimes derives the greeting from the
+customer's informal address to the AGENT ("老黄" → "Hi Lao Huang") instead of the broker
+contact/"team". Needs a prompt refinement + broker-contact resolution (default "team" when unknown).

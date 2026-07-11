@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from scripts.triage import triage
 from scripts.corpus_report import classify_issue
-from engine.knowledge import load_template
+from engine.knowledge import SHIPPER_SIGNOFF, TEMPLATES_DIR, load_template
 from engine.llm import LlmClient
 from engine.validate import validate_draft
 
@@ -19,6 +19,8 @@ class DraftRequest:
     facts: dict[str, str] = field(default_factory=dict)
     source_text: str = ""
     target_lang: str = "en"
+    issue_override: str | None = None  # when the issue type is known (customer picked it),
+    #                                    honor it instead of re-classifying from the subject
 
 
 @dataclass
@@ -41,13 +43,21 @@ def draft(req: DraftRequest, llm: LlmClient) -> DraftResult:
     if t == "billing-dispute":
         issue = "billing-dispute"
         slug = "billing-dispute"
-    else:  # shipment
+    elif req.issue_override:  # customer-declared issue type — honor it
+        issue = slug = req.issue_override
+    else:  # shipment — classify from the subject
         issue = classify_issue(req.subject)
         slug = issue if issue != "uncategorized" else "pickup"  # safe default; agent can correct
+    if not (TEMPLATES_DIR / f"{slug}.md").exists():  # unknown slug (e.g. "other") → safe default
+        slug = "pickup"
     template = load_template(slug)
     raw = llm.generate(system="", template=template, facts=req.facts,
                        source_text=req.source_text, target_lang=req.target_lang)
     v = validate_draft(raw, source_text=req.source_text)
+    # Deterministically inject the fixed shipper signoff — never trust the LLM for it.
+    body = v.body.replace("[[MISSING: shipper_signoff]]", SHIPPER_SIGNOFF) \
+                 .replace("{shipper_signoff}", SHIPPER_SIGNOFF)
+    missing = [x for x in v.missing if x != "shipper_signoff"]
     return DraftResult(triage=t, issue=issue, template_slug=slug, draft_lang=raw.lang,
-                       draft_body=v.body, missing=v.missing, rejected_slots=v.rejected,
+                       draft_body=body, missing=missing, rejected_slots=v.rejected,
                        warnings=v.warnings)

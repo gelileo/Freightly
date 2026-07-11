@@ -42,9 +42,16 @@ def open_customer_case(conn, *, engagement_id, broker_account_id, bol, pro, issu
                              issue_type=issue_type)
     cases.transition(conn, case.id, "DRAFTING", actor="system", action="open_customer_case")
     subject = f"{issue_type} --- {bol}" if bol else (issue_type or "")
-    req = DraftRequest(body=wechat_text, sender="customer", subject=subject,
-                       facts={"BOL": bol} if bol else {}, source_text=wechat_text,
-                       target_lang="en")
+    facts = {}
+    if bol:
+        facts["BOL"] = bol
+    if pro:
+        facts["PRO"] = pro
+    # Trusted structured fields (BOL/PRO) come from the form, not the free text — fold them into
+    # source_text so the anti-fabrication validator accepts them (they ARE ground truth here).
+    source_text = wechat_text + "".join(f"\n{k}: {v}" for k, v in facts.items())
+    req = DraftRequest(body=wechat_text, sender="customer", subject=subject, facts=facts,
+                       source_text=source_text, target_lang="en", issue_override=issue_type)
     result = engine_draft(req, llm)
     cases.add_message(conn, case_id=case.id, party="agent", channel="email", lang="en",
                       body=result.draft_body, status="pending_approval",
