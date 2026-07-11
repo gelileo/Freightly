@@ -101,6 +101,11 @@ CREATE TABLE IF NOT EXISTS invites (
     consumed_by_user TEXT REFERENCES users(id),
     consumed_at      TEXT
 );
+CREATE TABLE IF NOT EXISTS imap_state (
+    mailbox     TEXT PRIMARY KEY,
+    last_uid    INTEGER NOT NULL DEFAULT 0,
+    uidvalidity TEXT
+);
 """
 
 

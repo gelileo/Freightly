@@ -7,6 +7,7 @@ status: mature
 affects:
   - app/transport.py
   - app/config.py
+  - app/inbound.py
 references:
   - concepts/app/case-workflow.md
   - concepts/app/api.md
@@ -30,6 +31,13 @@ guarded and never imported/hit without creds (CI stays hermetic).
   RFC-822 `EmailMessage` with `In-Reply-To`/`References` for threading, calls
   `users().messages().send()`, returns the Gmail message + thread ids. **Deferred imports**, so
   `import app.transport` and even constructing `GmailTransport` work without the library.
+- `AlibabaSmtpTransport` — real adapter for **Alibaba Enterprise Mail** (`hs@justnanoinc.com`)
+  over **SMTP-SSL** using the **16-digit third-party client password** (stdlib `smtplib`, zero
+  deps). Sets a generated `Message-ID` + `In-Reply-To`/`References`; returns
+  `SentRef(message_id, thread_id=References-root)`. **`from_addr` is locked** to the authenticated
+  mailbox (raises `ValueError` otherwise — Alibaba/Gmail both reject a foreign From). The SMTP
+  client is an **injectable `smtp_factory`** (default `smtplib.SMTP_SSL`) so tests use a `FakeSmtp`
+  (no network). Live SMTP login verified 2026-07-11 (`smtp.qiye.aliyun.com:465`).
 
 ## Send-on-approval (the only outbound send path)
 
@@ -58,7 +66,11 @@ outbound→inbound loop with no new case.
 - `load_env()` — dependency-free `.env` loader (KEY=VALUE → `os.environ`, **real env wins** via
   `setdefault`; `.env` is gitignored). Called by both factories so keys in `.env` are picked up.
 - `make_llm()` → `GeminiLlmClient` when `GEMINI_API_KEY` is set (incl. from `.env`), else `FakeLlmClient`.
-- `make_transport()` → `GmailTransport` (OAuth creds from `GMAIL_TOKEN_FILE`) when set, else `FakeTransport`.
+- `make_transport()` precedence: **`AlibabaSmtpTransport`** (when `SMTP_PASSWORD` set;
+  `SMTP_ADDRESS` default `hs@justnanoinc.com`, `SMTP_HOST`/`SMTP_PORT` default
+  `smtp.qiye.aliyun.com`/`465`) → `GmailTransport` (`GMAIL_TOKEN_FILE`) → `FakeTransport`.
+- `make_imap_config()` → `{host,port,address,password}` for the inbound poller
+  (`IMAP_HOST`/`IMAP_PORT` default `imap.qiye.aliyun.com`/`993`).
 - `server.serve()` builds both from config (still injectable for tests). Env/`.env` unset → fakes.
 
 ### Real Gemini — verified live (2026-07-10)
@@ -72,18 +84,35 @@ and `config.make_llm()` auto-selected `GeminiLlmClient`. `google-genai` is **not
 python3 -m venv .venv && .venv/bin/pip install google-genai   # .venv is gitignored
 ```
 
-## Inbound (real Gmail) — how it connects
+## Inbound — IMAP poller (`app/inbound.py`, built)
 
-The `POST /inbound` webhook already accepts a raw `.eml` + `to_mailbox`. A production Gmail
-integration watches the agent mailbox (Gmail `watch`/push or poll), fetches the raw RFC-822
-message, and POSTs it to `/inbound` with the connected mailbox as `to_mailbox` (and, once
-`parse_eml` exposes Message-ID/References, the derived `thread_id`). Until header-derivation
-lands, outbound-established `mail_thread_id` is the threading key.
+`poll_once(conn, imap, *, mailbox_addr, llm)` pulls broker replies from the Alibaba mailbox and
+feeds `router.ingest_broker_email` — no webhook required:
+
+- **UID high-water mark** persisted in `imap_state(mailbox, last_uid, uidvalidity)`. Only messages
+  with `UID > last_uid` are processed. **First run** (or on `UIDVALIDITY` change) **seeds `last_uid`
+  to the current max UID**, so the existing backlog (measured **1,655 unread / 4,686 total** on the
+  live box) is skipped, not ingested.
+- **Read-only + `BODY.PEEK[]`** — the poller **never changes flags** on the shared human mailbox.
+- **Header-derived threading (now built):** `parse_eml_bytes` exposes `Message-ID`/`In-Reply-To`/
+  `References`; the poller derives `thread_id` from the References root (= the `Message-ID` we set
+  on send), so a broker reply matches the case whose `mail_thread_id` we stamped → summarize→ZH.
+- **Idempotent:** the watermark advances only after a successful ingest, and a message whose
+  `Message-ID` is already stored (`messages.mail_message_id`) is skipped.
+- `ImapClient` (real `imaplib.IMAP4_SSL`, read-only) + `run_poller(interval, once)` loop +
+  `python -m app.inbound` CLI. Polling, not IMAP IDLE. Live IMAP read-only login verified
+  2026-07-11 (`imap.qiye.aliyun.com:993`).
 
 ## Deferred / notes
-- Real Gemini and Gmail calls are unverified in CI (no creds) — mechanism proven with fakes;
-  a guarded construction test covers the import boundary.
-- `parse_eml` still doesn't expose Message-ID/References (header-derived inbound threading
-  remains a follow-up).
+- **No real send in build/tests** — all hermetic (`FakeSmtp`/`FakeImap`); guarded live tests only
+  log in (SMTP) / read-only select (IMAP). A live outbound send is a separate, explicitly-confirmed
+  step.
+- Gmail path retained but Alibaba is the live provider. Real Gemini verified separately (2026-07-10).
 - Recipient modeling is minimal (`broker_email` per broker account); per-contact routing and
-  send-failure retry/idempotency are follow-ups.
+  SMTP/IMAP retry/backoff are follow-ups (a transient poll error simply retries next cycle).
+- **Known low-risk limitations** (from the final review): a broker email with **no `Message-ID`**
+  has no secondary dedup key, so a crash in the tiny window between ingest-commit and
+  watermark-commit could duplicate it (real mail carries a Message-ID); a reply carrying only
+  `In-Reply-To` to a non-root message (no `References`) could spawn a new case instead of matching;
+  and dedup is not mailbox-scoped (harmless for the single-mailbox deployment). The primary
+  idempotency is the UID watermark; the `Message-ID` check is the secondary guard.

@@ -94,16 +94,32 @@ class ParsedEmail:
     bol: list[str]
     pro: list[str]
     turns: list[Turn]
+    message_id: str = ""
+    in_reply_to: str = ""
+    references: str = ""
 
 
 def parse_eml(path: "str | Path") -> ParsedEmail:
     path = Path(path)
     with open(path, "rb") as f:
         msg = email.message_from_binary_file(f, policy=policy.default)
-    body = decode_body(msg)
+    return _from_message(msg, path=str(path))
+
+
+def parse_eml_bytes(raw: "bytes | str") -> ParsedEmail:
+    if isinstance(raw, str):
+        raw = raw.encode("utf-8", "replace")
+    msg = email.message_from_bytes(raw, policy=policy.default)
+    return _from_message(msg, path="")
+
+
+def _from_message(msg, path: str = "") -> ParsedEmail:
+    # message_from_bytes preserves CRLF while message_from_binary_file yields LF; normalize so a
+    # path parse and a bytes parse of the same message produce identical bodies.
+    body = decode_body(msg).replace("\r\n", "\n").replace("\r", "\n")
     ids = extract_ids(body + " " + (msg.get("subject") or ""))
     return ParsedEmail(
-        path=str(path),
+        path=path,
         subject=(msg.get("subject") or "").strip(),
         sender=(msg.get("from") or "").strip(),
         date=(msg.get("date") or "").strip(),
@@ -111,6 +127,9 @@ def parse_eml(path: "str | Path") -> ParsedEmail:
         bol=ids["bol"],
         pro=ids["pro"],
         turns=split_turns(body),
+        message_id=(msg.get("message-id") or "").strip(),
+        in_reply_to=(msg.get("in-reply-to") or "").strip(),
+        references=(msg.get("references") or "").strip(),
     )
 
 

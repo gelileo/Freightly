@@ -11,8 +11,34 @@ def test_factories_default_to_fakes(monkeypatch):
     monkeypatch.setattr(config, "_ENV_LOADED", True)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GMAIL_TOKEN_FILE", raising=False)
+    monkeypatch.delenv("SMTP_PASSWORD", raising=False)
+    monkeypatch.delenv("SMTP_ADDRESS", raising=False)
     assert isinstance(config.make_llm(), FakeLlmClient)
     assert isinstance(config.make_transport(), FakeTransport)
+
+
+def _reset(monkeypatch, **env):
+    monkeypatch.setattr(config, "_ENV_LOADED", True)  # don't read the real .env
+    for k in ("SMTP_PASSWORD", "SMTP_ADDRESS", "GMAIL_TOKEN_FILE"):
+        monkeypatch.delenv(k, raising=False)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+
+
+def test_make_transport_prefers_alibaba_then_fake(monkeypatch):
+    from app.transport import AlibabaSmtpTransport
+    _reset(monkeypatch, SMTP_PASSWORD="pw16")
+    t = config.make_transport()
+    assert isinstance(t, AlibabaSmtpTransport) and t.address == "hs@justnanoinc.com"
+    _reset(monkeypatch)  # nothing set
+    assert isinstance(config.make_transport(), FakeTransport)
+
+
+def test_make_imap_config_defaults(monkeypatch):
+    _reset(monkeypatch, SMTP_PASSWORD="pw16")
+    cfg = config.make_imap_config()
+    assert cfg["host"] == "imap.qiye.aliyun.com" and cfg["port"] == 993
+    assert cfg["address"] == "hs@justnanoinc.com" and cfg["password"] == "pw16"
 
 
 def test_load_env_reads_file_without_overriding_real_env(tmp_path, monkeypatch):

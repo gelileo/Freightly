@@ -41,6 +41,15 @@ def make_llm():
 
 def make_transport():
     load_env()
+    # Alibaba Enterprise Mail (SMTP-SSL + 16-digit app password) takes precedence, then Gmail,
+    # then the deterministic fake. Gated on SMTP_PASSWORD so an unset env falls through to Fake.
+    password = os.environ.get("SMTP_PASSWORD")
+    if password:
+        from app.transport import AlibabaSmtpTransport
+        return AlibabaSmtpTransport(
+            address=os.environ.get("SMTP_ADDRESS", "hs@justnanoinc.com"), password=password,
+            host=os.environ.get("SMTP_HOST", "smtp.qiye.aliyun.com"),
+            port=int(os.environ.get("SMTP_PORT", "465")))
     token_file = os.environ.get("GMAIL_TOKEN_FILE")
     if token_file:
         from google.oauth2.credentials import Credentials  # deferred
@@ -49,6 +58,17 @@ def make_transport():
         return GmailTransport(credentials=creds)
     from app.transport import FakeTransport
     return FakeTransport()
+
+
+def make_imap_config():
+    """IMAP poller config for the Alibaba mailbox (see app.inbound.run_poller)."""
+    load_env()
+    return {
+        "host": os.environ.get("IMAP_HOST", "imap.qiye.aliyun.com"),
+        "port": int(os.environ.get("IMAP_PORT", "993")),
+        "address": os.environ.get("SMTP_ADDRESS", "hs@justnanoinc.com"),
+        "password": os.environ.get("SMTP_PASSWORD"),
+    }
 
 
 def make_wechat():
