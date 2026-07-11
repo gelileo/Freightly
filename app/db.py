@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     session_key TEXT
 );
 CREATE TABLE IF NOT EXISTS invites (
-    code             TEXT PRIMARY KEY,
+    code_hash        TEXT PRIMARY KEY,   -- sha256(code); raw code returned once, never stored
     customer_org_id  TEXT NOT NULL REFERENCES orgs(id),
     role             TEXT NOT NULL CHECK (role IN ('admin','operator','member')),
     created_by       TEXT NOT NULL REFERENCES users(id),

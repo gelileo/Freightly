@@ -88,9 +88,11 @@ def test_create_and_bind_invite_grants_membership():
     mem = auth.bind_via_invite(c, user_id=alice.id, code=code, now=NOW)
     assert mem.org_id == "cust" and mem.role == "member"
     assert repo.is_member(c, alice.id, "cust")
-    # invite is now single-use / consumed
-    row = c.execute("SELECT consumed_by_user FROM invites WHERE code=?", (code,)).fetchone()
+    # invite is now single-use / consumed; codes are stored hashed, not in plaintext
+    row = c.execute("SELECT consumed_by_user FROM invites WHERE code_hash=?",
+                    (auth._hash(code),)).fetchone()
     assert row["consumed_by_user"] == alice.id
+    assert c.execute("SELECT COUNT(*) n FROM invites WHERE code_hash=?", (code,)).fetchone()["n"] == 0
 
 
 def test_bind_rejects_bad_expired_and_consumed():
