@@ -160,6 +160,13 @@ cannot be redacted must produce a warning, never a silent success.**
 warnings: list[str] = []`. `draft()` surfaces `warnings` on `DraftResult.warnings` so the
 signal reaches callers/the approval UX.
 
+**Send-time guardrail — `find_placeholders(text) -> list[str]`.** `engine/validate.py` also
+exposes `find_placeholders`, which returns every unfilled placeholder in a body — any `[[…]]`
+marker (incl. `[[MISSING: …]]`) or template slot `{…}`. The only outbound send path
+(`app/api._approve_and_maybe_send`) calls it and **refuses to send** (409, nothing sent) when it
+returns non-empty. This turns the `[[MISSING]]` markers into a hard last-gate block, not just an
+advisory signal: an agent must edit the draft clean before it can reach a broker.
+
 **Known limitation (filled_slots-scoped) — close before the live Gemini path.** The check
 walks `raw.filled_slots` only; it does not scan the body prose for factual tokens the LLM
 wrote *without* reporting them in `filled_slots`. With `FakeLlmClient` this can't happen

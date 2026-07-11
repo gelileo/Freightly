@@ -53,6 +53,11 @@ def _open_case(c, t):
     cid = r.body["case"]["id"]
     # the internal English draft is withheld from the customer's response; fetch it as the agent
     mid = _d(c, "GET", f"/cases/{cid}", user="op", t=t).body["messages"][0]["id"]
+    # the raw pickup draft carries anti-fabrication placeholders; the agent reviews + completes it
+    # to a clean body (a placeholder-free draft is required to send — see the guardrail test).
+    _d(c, "POST", f"/cases/{cid}/messages/{mid}/edit", user="op", t=t, body={"body":
+        "Hi team,\n\nFollowing up on BOL 60114338678 — please confirm the earliest pickup "
+        "date and driver.\n\nThank you,\nJustnano"})
     return cid, mid
 
 
@@ -76,6 +81,25 @@ def test_send_on_approval_and_thread_continuity():
                                      to_mailbox="agent@justnano.com", thread_id=tid, llm=LLM)
     assert out.id == cid and out.status == "PENDING_APPROVAL"
     assert c.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 1
+
+
+def test_placeholder_draft_is_blocked_then_sends_after_edit():
+    # GUARDRAIL: a draft with unfilled placeholders must not reach the broker.
+    c = _net(); t = FakeTransport()
+    r = _d(c, "POST", "/cases", user="uc", t=t, body={
+        "engagement_id": "eng", "broker_account_id": "ba", "bol": "60114338678",
+        "issue_type": "pickup", "wechat_text": "请尽快提货"})   # no fields → draft has [[MISSING:…]]
+    cid = r.body["case"]["id"]
+    mid = _d(c, "GET", f"/cases/{cid}", user="op", t=t).body["messages"][0]["id"]
+    blocked = _d(c, "POST", f"/cases/{cid}/messages/{mid}/approve", user="op", t=t)
+    assert blocked.status == 409 and "placeholder" in blocked.body["error"]
+    assert t.sent == []                                              # nothing sent
+    assert c.execute("SELECT status FROM messages WHERE id=?", (mid,)).fetchone()[0] == "pending_approval"
+    # agent completes the draft → now it sends
+    _d(c, "POST", f"/cases/{cid}/messages/{mid}/edit", user="op", t=t,
+       body={"body": "Hi team, please confirm pickup for BOL 60114338678. Thanks, Justnano"})
+    ok = _d(c, "POST", f"/cases/{cid}/messages/{mid}/approve", user="op", t=t)
+    assert ok.status == 200 and len(t.sent) == 1
 
 
 class _RaisingTransport:

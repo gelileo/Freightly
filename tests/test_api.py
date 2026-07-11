@@ -96,6 +96,9 @@ def test_approval_flow_and_permissions():
     c = _net()
     cid = _open_case(c, "uc").body["case"]["id"]
     mid = _d(c, "GET", f"/cases/{cid}", user="op").body["messages"][0]["id"]
+    # complete the draft (the raw pickup draft carries placeholders that the send guard blocks)
+    _d(c, "POST", f"/cases/{cid}/messages/{mid}/edit", user="op",
+       body={"body": "Hi team, please confirm pickup for BOL 60114338678. Thanks, Justnano"})
     # a customer-org member may NOT approve (agent action)
     assert _d(c, "POST", f"/cases/{cid}/messages/{mid}/approve", user="uc").status == 403
     # the agent approves → sent + case advanced

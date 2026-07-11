@@ -50,6 +50,14 @@ guarded and never imported/hit without creds (CI stays hermetic).
   and (if unset) `cases.mail_thread_id` → advance the case to **AWAITING_BROKER**.
 - Missing recipient/**sending mailbox**/transport or illegal transition → `ValueError` → **409**,
   nothing sent, message stays `pending_approval`.
+- **Placeholder guardrail:** before any network send, the body is scanned with
+  `engine.validate.find_placeholders` — if it still contains an anti-fabrication marker
+  (`[[MISSING: …]]`) or an unfilled template slot (`{…}`), the send is refused (`ValueError` →
+  **409**, nothing sent). An agent must **edit** the draft to fill/remove the placeholder first.
+  This makes the anti-fabrication `[[MISSING]]` markers load-bearing at the last gate, not just
+  advisory in the console. (Note: an optional clause left unfilled — e.g. `pro_clause` when a
+  shipment has no PRO — also trips this; make such clauses render empty in drafting so no-PRO
+  shipments aren't blocked — a follow-up.)
 - **Atomicity:** the network send happens first (if it raises, nothing is written — message
   stays `pending_approval`, verified by `test_send_failure_leaves_state_untouched`); all
   post-send bookkeeping (message→sent, `SENT_TO_BROKER`→`AWAITING_BROKER` transitions, mail-id +
