@@ -33,8 +33,8 @@ def main():
     # agent org + operator
     repo.create_org(conn, "Justnano", "agent", id="agent")
     repo.create_user(conn, "Hughson (agent)", "email", "op@justnanoinc.com", id="op")
-    repo.add_member(conn, "op", "agent", "operator")
-    auth.set_password(conn, "op", DEMO_AGENT_PW)   # agent logs in with email + password
+    repo.add_member(conn, "op", "agent", "admin")   # founding admin (can add operators)
+    auth.set_password(conn, "op", DEMO_AGENT_PW)     # agent logs in with email + password
 
     # customer org + member
     repo.create_org(conn, "Acme Shipping", "customer", id="cust")

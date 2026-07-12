@@ -851,3 +851,10 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - Verified live (Playwright): op adds dana@justnanoinc.com → dana logs in via /auth/login.
 - Tests: test_router (add_agent_operator), test_api (flow, 409, bad-role 400, customer 403). 143 passed.
 - Docs: identity-model.md, api.md, agent-console.md, log.
+
+## 2026-07-12 — Admin-gate POST /agents (commit review: privilege escalation)
+- Security review flagged that any agent-org member (incl. a plain operator) could mint
+  operators/admins via POST /agents. Now requires the caller's membership role == 'admin' in the
+  agent org (403 otherwise). Seed/test 'op' is now the founding 'admin'. Customer onboarding stays
+  open to any operator (creates a customer login in a separate customer org, not agent-org privilege).
+- Tests: operator (jane) adding an operator → 403; admin (op) → 201. 143 passed.

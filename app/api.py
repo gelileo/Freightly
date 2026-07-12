@@ -331,6 +331,11 @@ def _add_agent(req, conn, llm, transport, wechat, m, _secret) -> Response:
     agent_org_id, err = _resolve_agent_org(conn, req.user_id, b)
     if err:
         return err
+    # Minting agent-org accounts (operators/admins) is privilege management → admin only.
+    crow = conn.execute("SELECT role FROM memberships WHERE user_id=? AND org_id=?",
+                        (req.user_id, agent_org_id)).fetchone()
+    if not crow or crow["role"] != "admin":
+        return Response(403, {"error": "admin role required to add operators"})
     try:
         result = router.add_agent_operator(conn, agent_org_id=agent_org_id, name=name,
                                            email=email, password=b.get("password"), role=role)

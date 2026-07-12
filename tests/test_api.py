@@ -16,7 +16,7 @@ def _net():
     repo.create_org(c, "Agent", "agent", id="agent")
     repo.create_org(c, "Other", "agent", id="other")
     repo.create_user(c, "uc", "email", "uc@x", id="uc"); repo.add_member(c, "uc", "cust", "member")
-    repo.create_user(c, "op", "email", "op@x", id="op"); repo.add_member(c, "op", "agent", "operator")
+    repo.create_user(c, "op", "email", "op@x", id="op"); repo.add_member(c, "op", "agent", "admin")
     repo.create_user(c, "ox", "email", "ox@x", id="ox"); repo.add_member(c, "ox", "other", "operator")
     repo.create_engagement(c, "cust", "agent", id="eng"); repo.approve_engagement(c, "eng")
     repo.create_broker(c, "P1", id="p1")
@@ -289,6 +289,9 @@ def test_add_agent_operator_flow():
     # a customer-org member cannot add operators
     assert _d(c, "POST", "/agents", user="uc",
               body={"name": "X", "email": "q@x.com"}).status == 403
+    # a plain OPERATOR (jane, created with default role) cannot add operators — admin only
+    assert _d(c, "POST", "/agents", user="jane@justno.com",
+              body={"name": "K", "email": "k@x.com"}).status == 403
 
 
 def test_agent_password_login():

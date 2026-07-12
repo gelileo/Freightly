@@ -62,4 +62,4 @@ The console now logs in with **email + password** (`POST /auth/login` → sessio
 
 ## Provisioning panels (2026-07-12)
 
-The console's left column has two agent-only provisioning panels: **Onboard customer** (`POST /onboard-customer` → customer org + active engagement + login) and **Add operator** (`POST /agents` → another agent operator/admin in this org). Both accept an optional password and show the generated temp password to hand off.
+The console's left column has two agent-only provisioning panels: **Onboard customer** (`POST /onboard-customer` → customer org + active engagement + login) and **Add operator** (`POST /agents` → another agent operator/admin in this org; **admin-only**). Both accept an optional password and show the generated temp password to hand off.

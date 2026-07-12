@@ -51,7 +51,7 @@ sqlite connections aren't thread-shareable).
 | `POST /auth/logout` | → `{ok:true}` (revokes the bearer token) | any valid session |
 | `POST /invites` | `{customer_org_id, role}` → 201 `{code, qr_scene}` | member of an **agent** org actively engaged with that customer org |
 | `POST /onboard-customer` | `{customer_name, login, password?, agent_org_id?}` → 201 `{customer_org_id, engagement_id, login, temp_password}` (creates customer org + login user + active engagement; sets/【generates】 password; 409 if login taken) | **agent**-org member |
-| `POST /agents` | `{name, email, password?, role?, agent_org_id?}` → 201 `{login, role, temp_password}` (create another agent operator/admin in the caller's agent org; 409 if email taken) | **agent**-org member |
+| `POST /agents` | `{name, email, password?, role?, agent_org_id?}` → 201 `{login, role, temp_password}` (create another agent operator/admin in the caller's agent org; 409 if email taken) | **agent**-org **admin** |
 | `POST /inbound` | `{eml, to_mailbox, thread_id?}` → `{case_id}` or `{skipped:true}` | webhook secret |
 
 ## Status-code mapping
