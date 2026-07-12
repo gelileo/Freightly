@@ -41,6 +41,16 @@ headless; Postgres is a later migration (swap `app/db.py`'s DDL/driver — the r
   so it must map to exactly one agent org. `agent_for_mailbox()` resolves which agent owns an
   inbound mailbox — the hook the Slice-3 inbound router uses.
 
+## Agent-initiated onboarding (`router.onboard_customer`)
+
+An agent operator provisions a customer in one step (`POST /onboard-customer`, agent-org members
+only): create a **customer org**, a customer **web-login user** (their `X-User-Id` is the chosen
+`login`) with a membership, and an **active engagement** with the agent org. Returns
+`{customer_org_id, engagement_id, login}`; a taken `login` → 409 (unique `auth_id`). This is the
+provisioning path for the web apps (there is no self-serve signup); the WeChat invite/bind path
+(below) is the alternative for Mini Program users. Surfaced in the agent console
+("Onboard customer"). See `concepts/app/deployment.md` for local seeding vs onboarding.
+
 ## Relationship-scoped access (`app/access.py`) — the security boundary
 
 The M:N network is isolated by relationship, not by per-org DB:

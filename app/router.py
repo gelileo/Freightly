@@ -29,6 +29,20 @@ def _classification_json(result) -> str:
     }, ensure_ascii=False)
 
 
+def onboard_customer(conn, *, agent_org_id, customer_name, login, contact_name=None) -> dict:
+    """Agent-initiated customer onboarding: create a customer org, a customer web-login user
+    (their X-User-Id is `login`) with a membership, and an ACTIVE engagement with the agent org.
+    Returns {customer_org_id, engagement_id, login}. A taken `login` raises sqlite3.IntegrityError
+    (unique auth_id) for the caller to map to 409."""
+    org = repo.create_org(conn, customer_name, "customer")
+    user = repo.create_user(conn, contact_name or f"{customer_name} (customer)",
+                            "email", login, id=login)
+    repo.add_member(conn, user.id, org.id, "member")
+    eng = repo.create_engagement(conn, org.id, agent_org_id)
+    repo.approve_engagement(conn, eng.id)
+    return {"customer_org_id": org.id, "engagement_id": eng.id, "login": user.id}
+
+
 def open_customer_case(conn, *, engagement_id, broker_account_id, bol, pro, issue_type,
                        wechat_text, llm, fields=None) -> Case:
     row = conn.execute(

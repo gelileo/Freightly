@@ -807,3 +807,12 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   serverless routing match. Clarifies: there is NO self-serve user creation — identity is
   provisioned (X-User-Id upstream / WeChat invite-bind); new users via seed/onboarding, not the UI.
 - Docs: deployment.md (+ .zh) "Local development". 134 passed.
+
+## 2026-07-12 — Agent-initiated customer onboarding
+- router.onboard_customer + POST /onboard-customer (agent-org members only): create customer org +
+  web-login user (X-User-Id = login) + membership + ACTIVE engagement; 409 on login collision;
+  resolves the caller's agent org (or explicit agent_org_id). No self-serve signup by design.
+- Agent console: "Onboard customer" panel (name + login → shows the login id to hand off).
+- Verified live (Playwright): agent onboards a customer → the new login sees the engagement + can
+  open a case. Tests: test_router (onboard graph), test_api (flow, 409 collision, agent-only/400).
+- Docs: identity-model.md, api.md, deployment.md, index/log. 138 passed.

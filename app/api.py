@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hmac
 import re
+import sqlite3
 from dataclasses import asdict, dataclass, field
 
 from app import repo, cases, router
@@ -272,6 +273,33 @@ def _auth_logout(req, conn, llm, transport, wechat, m, _secret) -> Response:
     return Response(200, {"ok": True})
 
 
+def _onboard_customer(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    b = req.body
+    name, login = b.get("customer_name"), b.get("login")
+    if not name or not login:
+        return Response(400, {"error": "customer_name and login required"})
+    # the caller must act as one of their agent orgs
+    agent_orgs = [r["id"] for r in conn.execute(
+        "SELECT o.id FROM orgs o JOIN memberships mem ON mem.org_id = o.id "
+        "WHERE mem.user_id = ? AND o.type = 'agent'", (req.user_id,))]
+    agent_org_id = b.get("agent_org_id")
+    if agent_org_id is not None:
+        if agent_org_id not in agent_orgs:
+            return Response(403, {"error": "not a member of that agent org"})
+    elif len(agent_orgs) == 1:
+        agent_org_id = agent_orgs[0]
+    elif not agent_orgs:
+        return Response(403, {"error": "only an agent-org member can onboard customers"})
+    else:
+        return Response(400, {"error": "specify agent_org_id (you belong to multiple)"})
+    try:
+        result = router.onboard_customer(conn, agent_org_id=agent_org_id, customer_name=name,
+                                         login=login, contact_name=b.get("contact_name"))
+    except sqlite3.IntegrityError:
+        return Response(409, {"error": "login already taken"})
+    return Response(201, result)
+
+
 def _create_invite(req, conn, llm, transport, wechat, m, _secret) -> Response:
     from app import auth
     b = req.body
@@ -308,6 +336,7 @@ _ROUTES = [
     ("POST", re.compile(r"^/auth/bind$"), _auth_bind, True),
     ("POST", re.compile(r"^/auth/logout$"), _auth_logout, True),
     ("POST", re.compile(r"^/invites$"), _create_invite, True),
+    ("POST", re.compile(r"^/onboard-customer$"), _onboard_customer, True),
     ("POST", re.compile(r"^/inbound$"), _inbound, False),  # webhook: no user auth
 ]
 
