@@ -80,3 +80,23 @@ def test_draft_surfaces_validator_warnings():
                            source_text="the real shipment is 60114338678"), _DriftLlm())
     assert r.triage == "shipment"
     assert r.warnings and any("BOL" in w for w in r.warnings)
+
+
+from engine.validate import find_placeholders
+
+
+def test_pro_clause_empty_when_no_pro_and_no_placeholder():
+    # a no-PRO shipment must NOT leave a {pro_clause}/[[MISSING: pro_clause]] placeholder
+    r = draft(DraftRequest(body="please pick up", sender="customer", subject="pickup --- 60114338678",
+                           facts={"BOL": "60114338678"}, source_text="BOL 60114338678",
+                           issue_override="pickup"), FakeLlmClient())
+    assert "pro_clause" not in r.draft_body and "PRO#" not in r.draft_body
+    assert "[[MISSING: pro_clause]]" not in r.draft_body
+
+
+def test_pro_clause_filled_when_pro_present():
+    r = draft(DraftRequest(body="please pick up", sender="customer", subject="pickup --- 60114338678",
+                           facts={"BOL": "60114338678", "PRO": "3100034"},
+                           source_text="BOL 60114338678 PRO 3100034",
+                           issue_override="pickup"), FakeLlmClient())
+    assert "(PRO# 3100034)" in r.draft_body

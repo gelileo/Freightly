@@ -57,7 +57,9 @@ Slots shared across every template:
 - `{BOL}` — the case's BOL number. Always required; sourced from the case folder name /
   thread header.
 - `{pro_clause}` — `" (PRO# {pro})"` when a PRO# is known, else an empty string (do not
-  print a placeholder PRO#).
+  print a placeholder PRO#). **Pre-filled deterministically by `engine.drafting.draft()`** from
+  `facts["PRO"]` (like `{broker_contact}`), *before* the LLM — so a no-PRO shipment renders an
+  empty clause, never an `[[MISSING: pro_clause]]` placeholder that the send guardrail would block.
 - `{customer_request}` — the customer's WeChat ask, translated to English and condensed to
   one sentence by the drafting skill. Empty string when there is nothing beyond the base
   ask already covered by the skeleton.

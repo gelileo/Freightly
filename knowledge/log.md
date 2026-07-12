@@ -768,3 +768,10 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   raw pickup draft before approving.
 - Docs: transport-and-config.md (send guard + note that an unfilled optional clause like
   pro_clause trips it → make optional clauses render empty, follow-up), drafting-engine.md.
+
+## 2026-07-11 — pro_clause rendered optional (no-PRO shipments no longer blocked)
+- `engine.drafting.draft()` now pre-fills `{pro_clause}` deterministically from facts["PRO"]
+  (`" (PRO# {pro})"` or empty), before the LLM — like `{broker_contact}`. A no-PRO shipment
+  renders an empty clause instead of `[[MISSING: pro_clause]]`, so the placeholder send guardrail
+  doesn't block a legitimate no-PRO draft. Tests: test_engine_drafting (empty-when-no-PRO,
+  filled-when-PRO). Docs: template-system.md, drafting-engine.md, transport-and-config.md.

@@ -70,6 +70,12 @@ def draft(req: DraftRequest, llm: LlmClient) -> DraftResult:
     # (e.g. from the customer's informal address to the agent). Default "team" when the broker
     # contact isn't known; the router may pass a resolved name via facts["broker_contact"].
     template = template.replace("{broker_contact}", req.facts.get("broker_contact") or "team")
+    # Pre-fill the OPTIONAL pro clause deterministically (per every template's Slots note:
+    # " (PRO# {pro})" when a PRO exists, else empty). Doing it here — not via the LLM — means a
+    # no-PRO shipment renders an empty clause rather than an [[MISSING: pro_clause]] placeholder
+    # that the send guardrail would (wrongly) block.
+    _pro = req.facts.get("PRO") or req.facts.get("pro")
+    template = template.replace("{pro_clause}", f" (PRO# {_pro})" if _pro else "")
     raw = llm.generate(system=_SYSTEM, template=template, facts=req.facts,
                        source_text=req.source_text, target_lang=req.target_lang)
     v = validate_draft(raw, source_text=req.source_text)
