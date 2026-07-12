@@ -144,6 +144,13 @@ claims is not a verbatim substring of `source_text`, it is **rejected**:
 Slots outside `FACTUAL_SLOTS` (e.g. `customer_request` — language, not a fact) are never
 policed this way; only claims about identifiable real-world facts are checked.
 
+**Deterministically pre-filled slots (not left to the LLM):** `{broker_contact}` (→ resolved
+name or `"team"`) and `{pro_clause}` (→ `" (PRO# {pro})"` from `facts["PRO"]`, else empty) are
+substituted in `draft()` *before* `llm.generate`, and `{shipper_signoff}` is injected *after*.
+Pre-filling `{pro_clause}` matters for the send guardrail: an optional clause with no value must
+render empty, not as an `[[MISSING: pro_clause]]` placeholder — otherwise a legitimate no-PRO
+shipment would be blocked from sending.
+
 **The `warnings` fail-loud mechanism.** Redaction by string-replace has one failure mode:
 if the fabricated value the LLM reported in `filled_slots` isn't actually present
 verbatim in the draft `body` (e.g. it reformatted "99999999999" differently in the
