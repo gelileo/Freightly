@@ -50,6 +50,8 @@ There is **no self-serve signup** — identity is provisioned (the web apps trus
 `X-User-Id`; WeChat users onboard via invite/bind). To run and use the apps locally:
 
 ```bash
+python3 manage.py                 # interactive menu: start/stop apps, seed/reset, status (recommended)
+# …or directly:
 python3 scripts/seed_demo.py      # creates demo accounts in ./hs.db (idempotent)
 python3 scripts/serve_local.py    # serves / (agent) + /customer + /api on http://127.0.0.1:8000
 ```
