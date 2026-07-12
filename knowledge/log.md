@@ -775,3 +775,11 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   renders an empty clause instead of `[[MISSING: pro_clause]]`, so the placeholder send guardrail
   doesn't block a legitimate no-PRO draft. Tests: test_engine_drafting (empty-when-no-PRO,
   filled-when-PRO). Docs: template-system.md, drafting-engine.md, transport-and-config.md.
+
+## 2026-07-11 — customer_request optional (no repeated base line)
+- `_SYSTEM` prompt now tells the model to leave `{customer_request}` empty when it adds nothing
+  beyond the skeleton (real Gemini was restating the base ask → duplicated line). `draft()` also
+  strips an unfilled `[[MISSING: customer_request]]`/`{customer_request}` + its blank line to empty
+  (optional language slot, not a fact). Verified live: no-PRO pickup draft now states the base
+  issue exactly once. Test: test_customer_request_optional_renders_empty_no_placeholder.
+- Docs: drafting-engine.md, template-system.md.
