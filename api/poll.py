@@ -1,6 +1,7 @@
 """Vercel Cron target: one inbound IMAP poll per invocation (see vercel.json `crons`). Pulls new
 broker replies from the Alibaba mailbox into cases (read-only, UID-watermarked). Optionally
 protected by CRON_SECRET (Bearer)."""
+import hmac
 import os
 import sys
 from http.server import BaseHTTPRequestHandler
@@ -13,7 +14,8 @@ from app import db, config, inbound  # noqa: E402
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         secret = os.environ.get("CRON_SECRET")
-        if secret and self.headers.get("Authorization") != f"Bearer {secret}":
+        if secret and not hmac.compare_digest(
+                str(self.headers.get("Authorization") or ""), f"Bearer {secret}"):
             return self._write(401, "unauthorized")
         cfg = config.make_imap_config()
         if not cfg["password"]:

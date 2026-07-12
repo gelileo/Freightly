@@ -49,6 +49,18 @@ def _member_of(conn, user_id, org_id) -> bool:
     return bool(org_id) and repo.is_member(conn, user_id, org_id)
 
 
+def _header(headers, name, default=""):
+    """Case-insensitive header lookup: HTTP/2 (Vercel) lowercases header names, so a plain-dict
+    `.get("Authorization")` would miss. Works for the test's plain dicts too."""
+    if name in headers:
+        return headers[name]
+    lname = name.lower()
+    for k, v in headers.items():
+        if k.lower() == lname:
+            return v
+    return default
+
+
 # --- handlers -------------------------------------------------------------------
 
 def _create_case(req, conn, llm, transport, wechat, m, _secret) -> Response:
@@ -207,7 +219,7 @@ def _approve_and_maybe_send(conn, transport, case, msg, actor) -> None:
 
 
 def _inbound(req, conn, llm, transport, wechat, m, secret) -> Response:
-    given = req.headers.get("X-Webhook-Secret", "")
+    given = _header(req.headers, "X-Webhook-Secret")
     if not secret or not hmac.compare_digest(str(given), str(secret)):
         return Response(401, {"error": "bad webhook secret"})
     b = req.body
@@ -254,7 +266,7 @@ def _auth_bind(req, conn, llm, transport, wechat, m, _secret) -> Response:
 
 def _auth_logout(req, conn, llm, transport, wechat, m, _secret) -> Response:
     from app import auth
-    ah = req.headers.get("Authorization", "")
+    ah = _header(req.headers, "Authorization")
     if ah.startswith("Bearer "):
         auth.revoke_session(conn, ah[len("Bearer "):])
     return Response(200, {"ok": True})
@@ -308,7 +320,7 @@ def dispatch(req: Request, *, conn, llm, transport=None, webhook_secret=None,
     # X-User-Id header. We defer the 401 until after route matching, though, so a public route
     # (e.g. /auth/wechat/login) still works when a client's global interceptor attaches a stale
     # token to the very request meant to re-login. On a protected route a bad token hard-401s.
-    auth_header = req.headers.get("Authorization", "")
+    auth_header = _header(req.headers, "Authorization")
     bearer_present = auth_header.startswith("Bearer ")
     bearer_bad = False
     if bearer_present:

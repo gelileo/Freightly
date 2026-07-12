@@ -62,6 +62,23 @@ except sqlite3.IntegrityError:
     reusable = c.execute("SELECT 1 AS x").fetchone()["x"] == 1
     check("rollback-after-error is atomic + conn reusable", undone and reusable)
 
+# auth.bind_via_invite on libSQL: exercises cur.rowcount (the single-use guard) + atomic consume
+from app import auth
+from app.wechat import FakeWeChatClient
+wx = FakeWeChatClient()
+_, admin, _ = auth.login_wechat(c, wx, "admin")
+code = auth.create_invite(c, customer_org_id="cust", role="member", created_by=admin.id)
+_, alice, _ = auth.login_wechat(c, wx, "alice")
+mem = auth.bind_via_invite(c, user_id=alice.id, code=code)
+check("bind_via_invite grants membership (rowcount guard works)",
+      mem.org_id == "cust" and repo.is_member(c, alice.id, "cust"))
+try:
+    _, bob, _ = auth.login_wechat(c, wx, "bob")
+    auth.bind_via_invite(c, user_id=bob.id, code=code)     # already consumed
+    check("second bind of consumed invite rejected", False)
+except ValueError:
+    check("second bind of consumed invite rejected", True)
+
 print("\n" + ("ALL PASS" if not fails else f"FAILURES: {fails}"))
 sys.stdout.flush()
 os._exit(0 if not fails else 1)   # hard-exit: libsql-client leaves a bg thread that stalls a normal exit

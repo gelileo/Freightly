@@ -268,3 +268,16 @@ def test_login_bad_code_400():
     c = _net()
     assert _d(c, "POST", "/auth/wechat/login", body={"js_code": "bad"}).status == 400
     assert _d(c, "POST", "/auth/wechat/login", body={}).status == 400
+
+
+def test_headers_case_insensitive_for_http2():
+    # HTTP/2 (Vercel) delivers header names lowercased; auth + webhook lookups must still match
+    c = _net()
+    token = _d(c, "POST", "/auth/wechat/login", body={"js_code": "z"}).body["session_token"]
+    assert _d(c, "GET", "/cases", headers={"authorization": f"Bearer {token}"}).status == 200
+    assert _d(c, "GET", "/cases", headers={"authorization": "Bearer nope"}).status == 401
+    # lowercase webhook secret still authenticates /inbound (skip email → 200 skipped)
+    r = _d(c, "POST", "/inbound", headers={"x-webhook-secret": SECRET},
+           body={"eml": "LTL-mail-2/10% Off Freight Promo LTL, Truckload And Expedited.eml",
+                 "to_mailbox": "ltlwest@priority1.com"})
+    assert r.status == 200 and r.body == {"skipped": True}

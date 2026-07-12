@@ -137,7 +137,9 @@ class _LibsqlCursor:
         return rest
 
     def __iter__(self):
-        return iter(self._rows)
+        rest = self._rows[self._i:]      # honor any prior fetchone(), like sqlite3
+        self._i = len(self._rows)
+        return iter(rest)
 
 
 class _LibsqlConnection:
@@ -149,15 +151,31 @@ class _LibsqlConnection:
         import libsql_client
         self._client = libsql_client.create_client_sync(url=url, auth_token=auth_token)
         self._tx = None
+        try:  # best-effort: match the sqlite path's FK enforcement (Turso may default it on)
+            self._client.execute("PRAGMA foreign_keys = ON")
+        except Exception:
+            pass
 
     def _tx_now(self):
         if self._tx is None:
             self._tx = self._client.transaction()
         return self._tx
 
+    @staticmethod
+    def _is_read(sql: str) -> bool:
+        head = sql.lstrip()[:6].upper()
+        return head == "SELECT" or head == "PRAGMA"
+
     def execute(self, sql: str, params=()):
         try:
-            rs = self._tx_now().execute(sql, list(params))
+            # Read-only statements autocommit when no write transaction is pending — so a SELECT
+            # never holds a Turso interactive transaction open across a later network call (SMTP
+            # send / LLM). This mirrors sqlite3, where SELECTs hold no write transaction. Reads
+            # made while writes are pending run inside the tx to preserve read-your-writes.
+            if self._is_read(sql) and self._tx is None:
+                rs = self._client.execute(sql, list(params))
+            else:
+                rs = self._tx_now().execute(sql, list(params))
         except Exception as e:  # normalize constraint errors to the sqlite3 type the app expects
             msg = str(e)
             if "UNIQUE" in msg or "constraint" in msg.lower():
