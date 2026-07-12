@@ -306,7 +306,8 @@ def _onboard_customer(req, conn, llm, transport, wechat, m, _secret) -> Response
         return Response(400, {"error": "specify agent_org_id (you belong to multiple)"})
     try:
         result = router.onboard_customer(conn, agent_org_id=agent_org_id, customer_name=name,
-                                         login=login, contact_name=b.get("contact_name"))
+                                         login=login, password=b.get("password"),
+                                         contact_name=b.get("contact_name"))
     except sqlite3.IntegrityError:
         return Response(409, {"error": "login already taken"})
     return Response(201, result)

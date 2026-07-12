@@ -35,9 +35,13 @@
 <body>
 <header>
   <h1>客户中心 · Customer</h1>
-  <input id="uid" placeholder="用户 / User ID (e.g. cust-user)">
+  <input id="email" placeholder="登录邮箱 / login email" autocomplete="username">
+  <input id="pw" type="password" placeholder="密码 / password" autocomplete="current-password"
+         onkeydown="if(event.key==='Enter')login()">
   <button onclick="login()">登录 / Log in</button>
+  <button onclick="logout()" id="logoutBtn" style="display:none">登出 / Log out</button>
   <span id="who" class="muted" style="color:#d1fae5"></span>
+  <span id="loginErr" class="muted" style="color:#fecaca"></span>
 </header>
 
 <div class="wrap">
@@ -67,7 +71,7 @@
 </div>
 
 <script>
-let UID = localStorage.getItem("cuid") || "";
+let TOKEN = localStorage.getItem("ctoken") || "";
 let ISSUE_TYPES = [], ENGAGEMENTS = [];
 const STATUS_ZH = {
   NEW: "待处理", DRAFTING: "拟稿中", PENDING_APPROVAL: "代理审核中",
@@ -78,25 +82,44 @@ const STATUS_ZH = {
 function esc(s) { return (s ?? "").replace(/[&<>"']/g,
   c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
 const API = "/api";                   // same-origin; Vercel routes /api/* to the function
-function headers() { return UID ? { "X-User-Id": UID } : {}; }
+function headers() { return TOKEN ? { "Authorization": "Bearer " + TOKEN } : {}; }
 async function api(method, path, body) {
   const opt = { method, headers: { ...headers() } };
   if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
   const r = await fetch(API + path, opt); let d = {}; try { d = await r.json(); } catch (e) {}
+  if (r.status === 401 && path !== "/auth/login" && TOKEN) {
+    logout(); document.getElementById("loginErr").textContent = "会话已过期 / session expired";
+  }
   return { status: r.status, data: d };
 }
 function show(id) { for (const s of ["cases","new"]) document.getElementById(s).classList.toggle("hidden", s !== id); }
+function setSignedIn(who) {
+  document.getElementById("who").textContent = who ? ("as " + who) : "";
+  document.getElementById("logoutBtn").style.display = who ? "" : "none";
+}
 
-function login() {
-  UID = document.getElementById("uid").value.trim(); localStorage.setItem("cuid", UID);
-  document.getElementById("who").textContent = UID ? ("as " + UID) : "";
+async function login() {
+  const err = document.getElementById("loginErr"); err.textContent = "";
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("pw").value;
+  if (!email || !password) { err.textContent = "邮箱 + 密码 / email + password"; return; }
+  const { status, data } = await api("POST", "/auth/login", { email, password });
+  if (status !== 200) { err.textContent = data.error || "登录失败 / login failed"; return; }
+  TOKEN = data.session_token; localStorage.setItem("ctoken", TOKEN);
+  document.getElementById("pw").value = "";
+  setSignedIn(data.user && (data.user.name || data.user.id));
   loadCases(); loadNewCaseData();
+}
+
+function logout() {
+  TOKEN = ""; localStorage.removeItem("ctoken"); setSignedIn(null);
+  document.getElementById("caseList").innerHTML = '<p class="muted">请先登录。 Log in first.</p>';
 }
 
 async function loadCases() {
   const el = document.getElementById("caseList"), err = document.getElementById("casesErr");
   err.textContent = "";
-  if (!UID) { el.innerHTML = '<p class="muted">请先登录。 Log in first.</p>'; return; }
+  if (!TOKEN) { el.innerHTML = '<p class="muted">请先登录。 Log in first.</p>'; return; }
   const { status, data } = await api("GET", "/cases");
   if (status !== 200) { err.textContent = `${status} ${data.error||""}`; return; }
   if (!data.cases.length) { el.innerHTML = '<p class="muted">暂无案件。 No cases yet.</p>'; return; }
@@ -121,7 +144,7 @@ async function openCustomerCase(id) {
 }
 
 async function loadNewCaseData() {
-  if (!UID) return;
+  if (!TOKEN) return;
   const it = await api("GET", "/issue-types"); ISSUE_TYPES = it.status === 200 ? it.data.issue_types : [];
   document.getElementById("issue").innerHTML =
     ISSUE_TYPES.map(i => `<option value="${esc(i.slug)}">${esc(i.label_zh)} / ${esc(i.label_en)}</option>`).join("");
@@ -175,8 +198,7 @@ async function submitCase() {
   renderFields(); loadCases(); show("cases");
 }
 
-document.getElementById("uid").value = UID;
-if (UID) { document.getElementById("who").textContent = "as " + UID; loadCases(); loadNewCaseData(); }
+if (TOKEN) { setSignedIn(true); loadCases(); loadNewCaseData(); }
 </script>
 </body>
 </html>

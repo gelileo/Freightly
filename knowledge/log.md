@@ -828,3 +828,12 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - Verified live (Playwright): bad password rejected (no token); correct password → Bearer session,
   signed in. Tests: test_auth (hash/verify, login_password), test_api (/auth/login flow). 141 passed.
 - Docs: identity-model.md, api.md, agent-console.md, deployment.md, index/log.
+
+## 2026-07-12 — Customer web app: same email+password session login
+- The customer app now logs in with email+password → Bearer session (mirrors the agent console);
+  401 auto-logout. router.onboard_customer sets the customer's password (or generates + returns a
+  temp_password for the agent to hand off); POST /onboard-customer gains `password`, returns
+  `temp_password`. seed_demo sets uc@acme.com / 'customer-demo'. X-User-Id kept for tests only.
+- Verified live (Playwright): bad password rejected, correct → 'as Acme Customer' via Bearer.
+- Tests: test_router (onboard sets working password), existing api tests green. 141 passed.
+- Docs: identity-model.md, customer-web.md, api.md, log.

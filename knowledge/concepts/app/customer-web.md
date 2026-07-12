@@ -60,3 +60,7 @@ Log in as a customer → New case → agent/broker/issue selects populate → ch
   a broker reply is summarized to Chinese, approval-gated, then displayed. The customer app still
   never shows internal English drafts.
 - WeChat Mini Program (same API) is a separate slice needing the WeChat toolchain.
+
+## Login (updated 2026-07-12)
+
+The customer app now logs in with **email + password** (`POST /auth/login` → session token, `Authorization: Bearer`), same as the agent console; 401 auto-logs-out. The customer's password is provisioned at onboarding (`onboard_customer` sets it or returns a `temp_password`). Replaces the earlier `X-User-Id` login. See `concepts/app/identity-model.md` → Email/password login.

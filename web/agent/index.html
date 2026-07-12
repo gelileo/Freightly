@@ -63,7 +63,9 @@
       <div class="muted" style="margin:4px 0">创建客户机构 + 启用合作 + 网页登录账号</div>
       <input id="onbName" placeholder="客户名称 / Customer name"
              style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
-      <input id="onbLogin" placeholder="登录 ID / login (X-User-Id)"
+      <input id="onbLogin" placeholder="登录邮箱 / login email"
+             style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
+      <input id="onbPw" placeholder="密码（留空自动生成）/ password (blank = auto)"
              style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
       <button class="primary" onclick="onboardCustomer()">创建 / Create</button>
       <div id="onbErr" class="err"></div>
@@ -87,11 +89,17 @@ async function onboardCustomer() {
   err.textContent = ""; ok.textContent = "";
   const customer_name = document.getElementById("onbName").value.trim();
   const login = document.getElementById("onbLogin").value.trim();
-  if (!customer_name || !login) { err.textContent = "请填写名称与登录 ID / name + login required"; return; }
-  const { status, data } = await api("POST", "/onboard-customer", { customer_name, login });
+  const password = document.getElementById("onbPw").value;
+  if (!customer_name || !login) { err.textContent = "请填写名称与登录邮箱 / name + login required"; return; }
+  const body = { customer_name, login };
+  if (password) body.password = password;
+  const { status, data } = await api("POST", "/onboard-customer", body);
   if (status !== 201) { err.textContent = `${status} ${data.error || "失败 / failed"}`; return; }
-  ok.textContent = `已创建 / created — 客户在 /customer 用登录 ID “${data.login}” 登录`;
-  document.getElementById("onbName").value = ""; document.getElementById("onbLogin").value = "";
+  const pwMsg = data.temp_password ? `，临时密码 / temp password: ${data.temp_password}` : "";
+  ok.textContent = `已创建 / created — 客户在 /customer 用 “${data.login}” 登录${pwMsg}`;
+  document.getElementById("onbName").value = "";
+  document.getElementById("onbLogin").value = "";
+  document.getElementById("onbPw").value = "";
 }
 
 async function api(method, path, body) {
