@@ -16,7 +16,7 @@ def test_triage_billing_dispute():
 
 def test_triage_skip():
     # statement: sender NoReply@Priority1, empty body
-    assert _bt("tests/fixtures/JUSTNANO INC (298296-P1) Statement from Priority1 is attached.eml") == "skip"
+    assert _bt("tests/fixtures/JUSTNANO INC Statement from Priority1 is attached.eml") == "skip"
     # promo
     assert _bt("tests/fixtures/10% Off Freight Promo LTL, Truckload And Expedited.eml") == "skip"
     # drayage / containers-from-port sales
