@@ -9,25 +9,25 @@ def _bt(path):
 
 def test_triage_billing_dispute():
     # FFBA "Free Freight Bill Audit ... pricing variance ... additional charge"
-    assert _bt("LTL-mail-2/FFBA BOL# 60112079078.eml") == "billing-dispute"
+    assert _bt("tests/fixtures/FFBA BOL# 60112079078.eml") == "billing-dispute"
     # out-of-route charge from Warp
-    assert _bt("LTL-mail-2/BOL 60114409180 _ P-118701-2621.eml") == "billing-dispute"
+    assert _bt("tests/fixtures/BOL 60114409180 _ P-118701-2621.eml") == "billing-dispute"
 
 
 def test_triage_skip():
     # statement: sender NoReply@Priority1, empty body
-    assert _bt("LTL-mail-2/JUSTNANO INC (298296-P1) Statement from Priority1 is attached.eml") == "skip"
+    assert _bt("tests/fixtures/JUSTNANO INC (298296-P1) Statement from Priority1 is attached.eml") == "skip"
     # promo
-    assert _bt("LTL-mail-2/10% Off Freight Promo LTL, Truckload And Expedited.eml") == "skip"
+    assert _bt("tests/fixtures/10% Off Freight Promo LTL, Truckload And Expedited.eml") == "skip"
     # drayage / containers-from-port sales
-    assert _bt("LTL-mail-2/Drayage.eml") == "skip"
+    assert _bt("tests/fixtures/Drayage.eml") == "skip"
     # "any shipments going out this week" sales check-in
-    assert _bt("LTL-mail-2/Any Shipments Going Out This Week_.eml") == "skip"
+    assert _bt("tests/fixtures/Any Shipments Going Out This Week_.eml") == "skip"
 
 
 def test_triage_shipment():
     # PO# needed to schedule a delivery = a real shipment issue
-    assert _bt("LTL-mail-2/60112049235.eml") == "shipment"
+    assert _bt("tests/fixtures/60112049235.eml") == "shipment"
 
 
 def test_triage_unit_rules():

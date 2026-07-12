@@ -173,16 +173,16 @@ def test_inbound_webhook():
     c = _net()
     # wrong secret
     assert _d(c, "POST", "/inbound", headers={"X-Webhook-Secret": "wrong"},
-              body={"eml": "LTL-mail-2/FFBA BOL# 60112079078.eml",
+              body={"eml": "tests/fixtures/FFBA BOL# 60112079078.eml",
                     "to_mailbox": "ltlwest@priority1.com"}).status == 401
     # skip email → skipped, no case
     r = _d(c, "POST", "/inbound", headers={"X-Webhook-Secret": SECRET},
-           body={"eml": "LTL-mail-2/10% Off Freight Promo LTL, Truckload And Expedited.eml",
+           body={"eml": "tests/fixtures/10% Off Freight Promo LTL, Truckload And Expedited.eml",
                  "to_mailbox": "ltlwest@priority1.com"})
     assert r.status == 200 and r.body == {"skipped": True}
     # billing email → case created
     r = _d(c, "POST", "/inbound", headers={"X-Webhook-Secret": SECRET},
-           body={"eml": "LTL-mail-2/FFBA BOL# 60112079078.eml",
+           body={"eml": "tests/fixtures/FFBA BOL# 60112079078.eml",
                  "to_mailbox": "ltlwest@priority1.com"})
     assert r.status == 200 and "case_id" in r.body
 
@@ -370,6 +370,6 @@ def test_headers_case_insensitive_for_http2():
     assert _d(c, "GET", "/cases", headers={"authorization": "Bearer nope"}).status == 401
     # lowercase webhook secret still authenticates /inbound (skip email → 200 skipped)
     r = _d(c, "POST", "/inbound", headers={"x-webhook-secret": SECRET},
-           body={"eml": "LTL-mail-2/10% Off Freight Promo LTL, Truckload And Expedited.eml",
+           body={"eml": "tests/fixtures/10% Off Freight Promo LTL, Truckload And Expedited.eml",
                  "to_mailbox": "ltlwest@priority1.com"})
     assert r.status == 200 and r.body == {"skipped": True}

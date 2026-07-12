@@ -1,10 +1,12 @@
 from pathlib import Path
 from scripts.corpus_report import corpus_report
+from corpus_util import needs_corpus
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = ROOT / "templates"
 
 
+@needs_corpus
 def test_every_issue_slug_has_template():
     slugs = set(corpus_report(ROOT / "LTL-mail")["by_issue"].keys())
     for slug in slugs:

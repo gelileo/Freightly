@@ -1,5 +1,8 @@
 from pathlib import Path
 from scripts.corpus import list_corpus, merged_best
+from corpus_util import needs_corpus
+
+pytestmark = needs_corpus
 
 
 def test_list_corpus_spans_both_dirs():

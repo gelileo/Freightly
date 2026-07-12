@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from scripts.corpus_report import classify_issue, corpus_report
+from corpus_util import needs_corpus
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -15,6 +16,7 @@ def test_classify_issue_known_prefixes():
     assert classify_issue("Re: Urgent Delivery Request – Crate Damaged _ 60114821897") == "damage"
 
 
+@needs_corpus
 def test_every_corpus_file_maps_to_known_issue():
     report = corpus_report(ROOT / "LTL-mail")
     # No subject may fall through as uncategorized; if this fails, add the new

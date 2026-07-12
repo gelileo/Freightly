@@ -12,3 +12,7 @@ hs.db
 *.db
 
 .run/
+
+# raw email corpus — dev-only dataset, not in git (see tests/fixtures for committed samples)
+LTL-mail/
+LTL-mail-2/

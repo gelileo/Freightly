@@ -23,7 +23,7 @@ def test_broker_initiated_end_to_end():
 
     # 1. a real broker billing email arrives → broker-initiated case + pending draft
     case = router.ingest_broker_email(
-        c, eml="LTL-mail-2/FFBA BOL# 60112079078.eml",
+        c, eml="tests/fixtures/FFBA BOL# 60112079078.eml",
         to_mailbox="ltlwest@priority1.com", llm=llm)
     assert case.origin == "broker" and case.status == "PENDING_APPROVAL"
     assert case.issue_type == "billing-dispute"

@@ -2,8 +2,10 @@ from scripts.triage_report import triage_report
 from scripts.parse_eml import parse_eml
 from engine.drafting import DraftRequest, draft
 from engine.llm import FakeLlmClient
+from corpus_util import needs_corpus
 
 
+@needs_corpus
 def test_triage_distribution_locked():
     # Ground truth over the merged 922-file corpus (LTL-mail + LTL-mail-2).
     r = triage_report()
@@ -14,9 +16,9 @@ def test_triage_distribution_locked():
 def test_engine_replays_known_cases():
     # Representative real emails route to the expected triage bucket through the engine.
     cases = {
-        "LTL-mail-2/FFBA BOL# 60112079078.eml": "billing-dispute",
-        "LTL-mail-2/10% Off Freight Promo LTL, Truckload And Expedited.eml": "skip",
-        "LTL-mail/Re_ pickup --- 60114338678.eml": "shipment",
+        "tests/fixtures/FFBA BOL# 60112079078.eml": "billing-dispute",
+        "tests/fixtures/10% Off Freight Promo LTL, Truckload And Expedited.eml": "skip",
+        "tests/fixtures/Re_ pickup --- 60114338678.eml": "shipment",
     }
     llm = FakeLlmClient()
     for path, expected_triage in cases.items():

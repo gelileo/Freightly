@@ -52,7 +52,7 @@ def test_open_customer_case_requires_active_engagement():
 def test_ingest_skip_creates_nothing():
     c = _net()
     out = router.ingest_broker_email(
-        c, eml="LTL-mail-2/10% Off Freight Promo LTL, Truckload And Expedited.eml",
+        c, eml="tests/fixtures/10% Off Freight Promo LTL, Truckload And Expedited.eml",
         to_mailbox="ltlwest@priority1.com", llm=FakeLlmClient())
     assert out is None
     assert c.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 0
@@ -62,7 +62,7 @@ def test_ingest_skip_creates_nothing():
 def test_ingest_new_broker_case_creates_pending_draft():
     c = _net()
     case = router.ingest_broker_email(
-        c, eml="LTL-mail-2/FFBA BOL# 60112079078.eml",
+        c, eml="tests/fixtures/FFBA BOL# 60112079078.eml",
         to_mailbox="ltlwest@priority1.com", llm=FakeLlmClient())
     assert case is not None and case.origin == "broker" and case.status == "PENDING_APPROVAL"
     assert case.customer_org_id is None  # unattributed broker-initiated case
@@ -75,7 +75,7 @@ def test_ingest_new_broker_case_creates_pending_draft():
 def test_ingest_unknown_mailbox_raises():
     c = _net()
     with pytest.raises(ValueError):
-        router.ingest_broker_email(c, eml="LTL-mail-2/FFBA BOL# 60112079078.eml",
+        router.ingest_broker_email(c, eml="tests/fixtures/FFBA BOL# 60112079078.eml",
                                    to_mailbox="nobody@nowhere.com", llm=FakeLlmClient())
 
 
@@ -85,7 +85,7 @@ def test_ingest_matched_thread_appends_reply():
     case = cases.create_case(c, agent_org_id="a1", customer_org_id="c1", origin="customer",
                              status="AWAITING_BROKER", mail_thread_id="T1", id="pc1")
     out = router.ingest_broker_email(
-        c, eml="LTL-mail-2/FFBA BOL# 60112079078.eml", to_mailbox="ltlwest@priority1.com",
+        c, eml="tests/fixtures/FFBA BOL# 60112079078.eml", to_mailbox="ltlwest@priority1.com",
         thread_id="T1", llm=FakeLlmClient())
     assert out.id == "pc1"
     assert out.status == "PENDING_APPROVAL"  # fresh status (not the stale REPLY_DRAFTED)
@@ -101,7 +101,7 @@ def test_broker_reply_relayed_to_customer_as_zh():
     cases.create_case(c, agent_org_id="a1", customer_org_id="c1", origin="customer",
                       status="AWAITING_BROKER", mail_thread_id="T1", id="pc1")
     out = router.ingest_broker_email(
-        c, eml="LTL-mail-2/FFBA BOL# 60112079078.eml", to_mailbox="ltlwest@priority1.com",
+        c, eml="tests/fixtures/FFBA BOL# 60112079078.eml", to_mailbox="ltlwest@priority1.com",
         thread_id="T1", llm=FakeLlmClient())
     assert out.status == "PENDING_APPROVAL"
     # the pending message is a Chinese, app-channel customer update (the relayed summary)

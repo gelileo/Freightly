@@ -77,7 +77,7 @@ def test_send_on_approval_and_thread_continuity():
     assert tid
     assert r.body["case"]["status"] == "AWAITING_BROKER"
     # a broker reply on that thread matches the SAME case (no new case)
-    out = router.ingest_broker_email(c, eml="LTL-mail-2/FFBA BOL# 60112079078.eml",
+    out = router.ingest_broker_email(c, eml="tests/fixtures/FFBA BOL# 60112079078.eml",
                                      to_mailbox="agent@justnano.com", thread_id=tid, llm=LLM)
     assert out.id == cid and out.status == "PENDING_APPROVAL"
     assert c.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 1

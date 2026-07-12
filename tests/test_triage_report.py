@@ -1,4 +1,7 @@
 from scripts.triage_report import triage_report
+from corpus_util import needs_corpus
+
+pytestmark = needs_corpus
 
 
 def test_triage_report_covers_corpus():

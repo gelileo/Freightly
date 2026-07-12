@@ -1,6 +1,7 @@
 import email
 from email import policy
 from scripts.parse_eml import decode_body
+from corpus_util import needs_corpus
 
 
 def _msg(path):
@@ -71,6 +72,7 @@ def test_parse_eml_aggregates(sample_pickup):
     assert len(p.turns) == 2
 
 
+@needs_corpus
 def test_dedupe_snapshots_keeps_largest(corpus_dir):
     from pathlib import Path
     from scripts.parse_eml import dedupe_snapshots
