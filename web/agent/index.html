@@ -71,6 +71,19 @@
       <div id="onbErr" class="err"></div>
       <div id="onbOk" class="muted"></div>
     </div>
+    <div class="card" style="margin-top:12px">
+      <strong>添加操作员 / Add operator</strong>
+      <div class="muted" style="margin:4px 0">为本机构创建一个操作员登录(邮箱 + 密码)</div>
+      <input id="agName" placeholder="姓名 / name"
+             style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
+      <input id="agEmail" placeholder="邮箱 / email"
+             style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
+      <input id="agPw" placeholder="密码（留空自动生成）/ password (blank = auto)"
+             style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
+      <button class="primary" onclick="addAgent()">创建 / Create</button>
+      <div id="agErr" class="err"></div>
+      <div id="agOk" class="muted"></div>
+    </div>
   </div>
   <div class="card">
     <div id="detail"><p class="muted">选择一个案件。 Select a case.</p></div>
@@ -83,6 +96,24 @@ let TOKEN = localStorage.getItem("token") || "";
 let CURRENT = null;
 
 function headers() { return TOKEN ? { "Authorization": "Bearer " + TOKEN } : {}; }
+
+async function addAgent() {
+  const err = document.getElementById("agErr"), ok = document.getElementById("agOk");
+  err.textContent = ""; ok.textContent = "";
+  const name = document.getElementById("agName").value.trim();
+  const email = document.getElementById("agEmail").value.trim();
+  const password = document.getElementById("agPw").value;
+  if (!name || !email) { err.textContent = "请填写姓名与邮箱 / name + email required"; return; }
+  const body = { name, email };
+  if (password) body.password = password;
+  const { status, data } = await api("POST", "/agents", body);
+  if (status !== 201) { err.textContent = `${status} ${data.error || "失败 / failed"}`; return; }
+  const pwMsg = data.temp_password ? `，临时密码 / temp password: ${data.temp_password}` : "";
+  ok.textContent = `已创建操作员 / operator created — ${data.login}${pwMsg}`;
+  document.getElementById("agName").value = "";
+  document.getElementById("agEmail").value = "";
+  document.getElementById("agPw").value = "";
+}
 
 async function onboardCustomer() {
   const err = document.getElementById("onbErr"), ok = document.getElementById("onbOk");

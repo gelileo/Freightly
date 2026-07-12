@@ -59,3 +59,7 @@ toolchains), pagination, and richer case filtering are later slices.
 ## Login (updated 2026-07-12)
 
 The console now logs in with **email + password** (`POST /auth/login` → session token) and sends `Authorization: Bearer <token>` on every call; on 401 it clears the token and returns to the login prompt. Passwords are provisioned out-of-band (`scripts/set_agent_password.py`, or `seed_demo.py` for the demo operator). Replaces the earlier type-any `X-User-Id` login. See `concepts/app/identity-model.md` → Email/password login.
+
+## Provisioning panels (2026-07-12)
+
+The console's left column has two agent-only provisioning panels: **Onboard customer** (`POST /onboard-customer` → customer org + active engagement + login) and **Add operator** (`POST /agents` → another agent operator/admin in this org). Both accept an optional password and show the generated temp password to hand off.

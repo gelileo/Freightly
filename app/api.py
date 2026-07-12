@@ -285,31 +285,57 @@ def _auth_logout(req, conn, llm, transport, wechat, m, _secret) -> Response:
     return Response(200, {"ok": True})
 
 
+def _resolve_agent_org(conn, user_id, body):
+    """(agent_org_id, None) or (None, error Response). The caller acts as one of their agent
+    orgs — an explicit `agent_org_id` (validated) or their sole one."""
+    agent_orgs = [r["id"] for r in conn.execute(
+        "SELECT o.id FROM orgs o JOIN memberships mem ON mem.org_id = o.id "
+        "WHERE mem.user_id = ? AND o.type = 'agent'", (user_id,))]
+    requested = body.get("agent_org_id")
+    if requested is not None:
+        if requested not in agent_orgs:
+            return None, Response(403, {"error": "not a member of that agent org"})
+        return requested, None
+    if len(agent_orgs) == 1:
+        return agent_orgs[0], None
+    if not agent_orgs:
+        return None, Response(403, {"error": "only an agent-org member can do this"})
+    return None, Response(400, {"error": "specify agent_org_id (you belong to multiple)"})
+
+
 def _onboard_customer(req, conn, llm, transport, wechat, m, _secret) -> Response:
     b = req.body
     name, login = b.get("customer_name"), b.get("login")
     if not name or not login:
         return Response(400, {"error": "customer_name and login required"})
-    # the caller must act as one of their agent orgs
-    agent_orgs = [r["id"] for r in conn.execute(
-        "SELECT o.id FROM orgs o JOIN memberships mem ON mem.org_id = o.id "
-        "WHERE mem.user_id = ? AND o.type = 'agent'", (req.user_id,))]
-    agent_org_id = b.get("agent_org_id")
-    if agent_org_id is not None:
-        if agent_org_id not in agent_orgs:
-            return Response(403, {"error": "not a member of that agent org"})
-    elif len(agent_orgs) == 1:
-        agent_org_id = agent_orgs[0]
-    elif not agent_orgs:
-        return Response(403, {"error": "only an agent-org member can onboard customers"})
-    else:
-        return Response(400, {"error": "specify agent_org_id (you belong to multiple)"})
+    agent_org_id, err = _resolve_agent_org(conn, req.user_id, b)
+    if err:
+        return err
     try:
         result = router.onboard_customer(conn, agent_org_id=agent_org_id, customer_name=name,
                                          login=login, password=b.get("password"),
                                          contact_name=b.get("contact_name"))
     except sqlite3.IntegrityError:
         return Response(409, {"error": "login already taken"})
+    return Response(201, result)
+
+
+def _add_agent(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    b = req.body
+    name, email = b.get("name"), b.get("email")
+    role = b.get("role", "operator")
+    if not name or not email:
+        return Response(400, {"error": "name and email required"})
+    if role not in ("operator", "admin"):
+        return Response(400, {"error": "role must be operator or admin"})
+    agent_org_id, err = _resolve_agent_org(conn, req.user_id, b)
+    if err:
+        return err
+    try:
+        result = router.add_agent_operator(conn, agent_org_id=agent_org_id, name=name,
+                                           email=email, password=b.get("password"), role=role)
+    except sqlite3.IntegrityError:
+        return Response(409, {"error": "email already taken"})
     return Response(201, result)
 
 
@@ -351,6 +377,7 @@ _ROUTES = [
     ("POST", re.compile(r"^/auth/logout$"), _auth_logout, True),
     ("POST", re.compile(r"^/invites$"), _create_invite, True),
     ("POST", re.compile(r"^/onboard-customer$"), _onboard_customer, True),
+    ("POST", re.compile(r"^/agents$"), _add_agent, True),
     ("POST", re.compile(r"^/inbound$"), _inbound, False),  # webhook: no user auth
 ]
 
