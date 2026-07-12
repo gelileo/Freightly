@@ -10,12 +10,10 @@ cases/
 
 hs.db
 *.db
-
+.vscode/
 .run/
-
 # raw email corpus — dev-only dataset, not in git (see tests/fixtures for committed samples)
-LTL-mail/
-LTL-mail-2/
+LTL-MAIL*
 
 # design docs / guides — contain PII (emails, addresses, BOLs); kept locally, not in git
 docs/
