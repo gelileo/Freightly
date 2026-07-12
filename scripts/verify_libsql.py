@@ -50,6 +50,18 @@ except sqlite3.IntegrityError:
 except Exception as e:
     check(f"duplicate membership raises IntegrityError (got {type(e).__name__})", False)
 
+# transaction atomicity: two writes in one tx, second violates PK; rollback undoes BOTH and the
+# connection stays usable (this is the semantics the guarded state machine + atomic bind rely on)
+try:
+    c.execute("INSERT INTO orgs (id, name, type) VALUES ('t1','T1','customer')")   # uncommitted
+    c.execute("INSERT INTO orgs (id, name, type) VALUES ('cust','dup','customer')")  # PK dup → err
+    check("mid-tx constraint error raises", False)
+except sqlite3.IntegrityError:
+    c.rollback()
+    undone = c.execute("SELECT COUNT(*) n FROM orgs WHERE id='t1'").fetchone()["n"] == 0
+    reusable = c.execute("SELECT 1 AS x").fetchone()["x"] == 1
+    check("rollback-after-error is atomic + conn reusable", undone and reusable)
+
 print("\n" + ("ALL PASS" if not fails else f"FAILURES: {fails}"))
 sys.stdout.flush()
 os._exit(0 if not fails else 1)   # hard-exit: libsql-client leaves a bg thread that stalls a normal exit
