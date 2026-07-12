@@ -45,7 +45,11 @@ guarded and never imported/hit without creds (CI stays hermetic).
 - app-channel (customer) approvals do **not** send.
 - email (broker-facing) approvals: resolve `from_addr` = broker-account `mailbox` (agent's
   connected mailbox), `to` = broker-account `broker_email` (the broker's address; a new
-  nullable column distinct from the routing `mailbox`). Validate the transition, then
+  nullable column distinct from the routing `mailbox`). This `broker_email` is set when the
+  account is created (via `seed_demo.py` seeding, or the admin **`POST /brokers`** route) and can
+  be corrected later via **`POST /brokers/{account_id}`** — an agent **admin** manages brokers
+  from the console's Brokers panel (see `agent-console.md`); it is not read from an env var at
+  send time. Validate the transition, then
   `transport.send(...)` → mark sent (`cases.approve_message`) → stamp `messages.mail_message_id`
   and (if unset) `cases.mail_thread_id` → advance the case to **AWAITING_BROKER**.
 - Missing recipient/**sending mailbox**/transport or illegal transition → `ValueError` → **409**,

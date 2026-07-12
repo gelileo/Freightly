@@ -887,3 +887,23 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
  port, "already running" path, and the status orphan flag. Seeded `hs.db` (was empty → login
  would have failed). No taxonomy/template/parsing/drafting behaviour changed.
 - Docs: deployment.md (+ .zh) local-dev section, log.
+
+## [2026-07-12] compile | in-app broker management (agent admins)
+
+- Gap: broker accounts (recipient `broker_email` + agent's sending `mailbox`) could only be
+ created at seed/CLI time (`seed_demo.py` → `repo.connect_broker_account`); an agent could not
+ add a broker or correct a recipient from the running app. The `broker_email` is the `to` used
+ when an approved broker email sends (`transport-and-config.md`).
+- Added, admin-gated (mirrors `/agents`): `GET /brokers` (list, any agent-org member),
+ `POST /brokers` (create broker + account; admin), `POST /brokers/{account_id}` (edit recipient;
+ admin; 404 if the account belongs to another agent org). Local server speaks only GET/POST, so
+ "update" is POST not PATCH. New `repo.update_broker_email`, `router.add_broker` /
+ `set_broker_email`, and `api._require_agent_admin` (shared admin gate; `_add_agent` refactored
+ onto it, DRY). Agent console gains a **Brokers** panel (list + inline recipient edit + add form),
+ loaded on login/session-restore.
+- Tests: `tests/test_api.py` — list/create/edit happy path, admin-only + cross-org 404 scoping,
+ missing-field 400, duplicate-mailbox 400. 139 passed / 13 skipped. Verified live over HTTP and in
+ a real browser (Playwright): logged in as the demo admin, created/edited a broker, confirmed the
+ edit persisted; removed the test broker afterward.
+- Docs: api.md (route table + 404 note), agent-console.md (+ .zh: three-panel section),
+ transport-and-config.md (broker_email now app-configurable, not env), log.

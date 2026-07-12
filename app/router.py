@@ -64,6 +64,27 @@ def add_agent_operator(conn, *, agent_org_id, name, email, password=None,
     return {"login": user.id, "role": role, "temp_password": None if password else pw}
 
 
+def add_broker(conn, *, agent_org_id, name, broker_email, mailbox=None) -> dict:
+    """Register a broker for an agent org and connect an account carrying the recipient address
+    (and optionally the agent's own sending mailbox). A mailbox already claimed by another agent
+    org raises ValueError. Returns the created broker + account ids and their stored fields."""
+    broker = repo.create_broker(conn, name)
+    acct = repo.connect_broker_account(conn, agent_org_id, broker.id, mailbox=mailbox or None,
+                                       broker_email=broker_email)
+    return {"account_id": acct.id, "broker_id": broker.id, "name": name,
+            "mailbox": acct.mailbox, "broker_email": acct.broker_email}
+
+
+def set_broker_email(conn, *, agent_org_id, account_id, broker_email) -> dict | None:
+    """Update a broker account's recipient address. Returns None (→ 404) when the account does not
+    exist OR belongs to a different agent org, so one org can never edit another's broker."""
+    acct = repo.broker_account(conn, account_id)
+    if acct is None or acct.agent_org_id != agent_org_id:
+        return None
+    updated = repo.update_broker_email(conn, account_id, broker_email)
+    return {"account_id": updated.id, "broker_email": updated.broker_email}
+
+
 def open_customer_case(conn, *, engagement_id, broker_account_id, bol, pro, issue_type,
                        wechat_text, llm, fields=None) -> Case:
     row = conn.execute(

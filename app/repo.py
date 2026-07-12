@@ -151,6 +151,15 @@ def broker_account(conn, account_id) -> BrokerAccount | None:
     return _row_to_broker_account(r) if r else None
 
 
+def update_broker_email(conn, account_id, broker_email) -> BrokerAccount | None:
+    """Set the recipient address for an existing broker account. Returns the updated account,
+    or None if no account has that id."""
+    conn.execute("UPDATE broker_accounts SET broker_email=? WHERE id=?",
+                 (broker_email, account_id))
+    conn.commit()
+    return broker_account(conn, account_id)
+
+
 def broker_accounts_for_agent(conn, agent_org_id) -> list[BrokerAccount]:
     return [_row_to_broker_account(r) for r in conn.execute(
         "SELECT * FROM broker_accounts WHERE agent_org_id=?", (agent_org_id,))]

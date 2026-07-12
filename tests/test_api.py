@@ -295,6 +295,56 @@ def test_add_agent_operator_flow():
               body={"name": "K", "email": "k@x.com"}).status == 403
 
 
+def test_brokers_list_create_and_edit():
+    c = _net()   # fixture seeds broker 'P1' account 'ba' (ltlwest@priority1.com) under org 'agent'
+    # any agent-org member can list; the seeded account is there
+    r = _d(c, "GET", "/brokers", user="op")
+    assert r.status == 200
+    assert [b["broker_email"] for b in r.body["brokers"]] == ["ltlwest@priority1.com"]
+
+    # admin creates a new broker (name + recipient); it appears in the list
+    r = _d(c, "POST", "/brokers", user="op",
+           body={"name": "Old Dominion", "broker_email": "dispatch@odfl.com"})
+    assert r.status == 201 and r.body["broker_email"] == "dispatch@odfl.com"
+    acct_id = r.body["account_id"]
+    emails = {b["broker_email"] for b in _d(c, "GET", "/brokers", user="op").body["brokers"]}
+    assert emails == {"ltlwest@priority1.com", "dispatch@odfl.com"}
+
+    # admin edits the recipient of an existing account
+    r = _d(c, "POST", f"/brokers/{acct_id}", user="op", body={"broker_email": "new@odfl.com"})
+    assert r.status == 200 and r.body["broker_email"] == "new@odfl.com"
+    assert repo.broker_account(c, acct_id).broker_email == "new@odfl.com"
+
+
+def test_brokers_admin_only_and_scoped():
+    c = _net()
+    # 'ox' is an OPERATOR (not admin) in agent org 'other' → cannot create or edit
+    assert _d(c, "POST", "/brokers", user="ox",
+              body={"name": "X", "broker_email": "x@x.com"}).status == 403
+    # a customer-org member is not an agent-org member at all → 403
+    assert _d(c, "POST", "/brokers", user="uc",
+              body={"name": "X", "broker_email": "x@x.com"}).status == 403
+    assert _d(c, "GET", "/brokers", user="uc").status == 403
+    # missing required field → 400
+    assert _d(c, "POST", "/brokers", user="op", body={"name": "X"}).status == 400
+    # one agent org cannot edit another org's broker account: 'ba' belongs to 'agent', but the
+    # only admin of 'other'… there is none, so make one to prove the cross-org 404
+    repo.create_user(c, "oadmin", "email", "oa@x", id="oadmin")
+    repo.add_member(c, "oadmin", "other", "admin")
+    assert _d(c, "POST", "/brokers/ba", user="oadmin",
+              body={"broker_email": "steal@x.com"}).status == 404
+    # editing a non-existent account → 404
+    assert _d(c, "POST", "/brokers/nope", user="op",
+              body={"broker_email": "y@x.com"}).status == 404
+
+
+def test_brokers_duplicate_mailbox_rejected():
+    c = _net()   # 'ba' already claims mailbox ltlwest@priority1.com
+    r = _d(c, "POST", "/brokers", user="op",
+           body={"name": "Dup", "broker_email": "d@x.com", "mailbox": "ltlwest@priority1.com"})
+    assert r.status == 400 and "already claimed" in r.body["error"]
+
+
 def test_agent_password_login():
     c = _net()
     from app import auth

@@ -320,6 +320,20 @@ def _onboard_customer(req, conn, llm, transport, wechat, m, _secret) -> Response
     return Response(201, result)
 
 
+def _require_agent_admin(conn, user_id, body):
+    """Resolve the caller's agent org AND require they are an admin of it. Returns
+    (agent_org_id, None) on success or (None, Response) with the right 4xx — factoring the
+    privilege-management gate shared by /agents and /brokers."""
+    agent_org_id, err = _resolve_agent_org(conn, user_id, body)
+    if err:
+        return None, err
+    crow = conn.execute("SELECT role FROM memberships WHERE user_id=? AND org_id=?",
+                        (user_id, agent_org_id)).fetchone()
+    if not crow or crow["role"] != "admin":
+        return None, Response(403, {"error": "admin role required"})
+    return agent_org_id, None
+
+
 def _add_agent(req, conn, llm, transport, wechat, m, _secret) -> Response:
     b = req.body
     name, email = b.get("name"), b.get("email")
@@ -328,20 +342,61 @@ def _add_agent(req, conn, llm, transport, wechat, m, _secret) -> Response:
         return Response(400, {"error": "name and email required"})
     if role not in ("operator", "admin"):
         return Response(400, {"error": "role must be operator or admin"})
-    agent_org_id, err = _resolve_agent_org(conn, req.user_id, b)
+    # Minting agent-org accounts (operators/admins) is privilege management → admin only.
+    agent_org_id, err = _require_agent_admin(conn, req.user_id, b)
     if err:
         return err
-    # Minting agent-org accounts (operators/admins) is privilege management → admin only.
-    crow = conn.execute("SELECT role FROM memberships WHERE user_id=? AND org_id=?",
-                        (req.user_id, agent_org_id)).fetchone()
-    if not crow or crow["role"] != "admin":
-        return Response(403, {"error": "admin role required to add operators"})
     try:
         result = router.add_agent_operator(conn, agent_org_id=agent_org_id, name=name,
                                            email=email, password=b.get("password"), role=role)
     except sqlite3.IntegrityError:
         return Response(409, {"error": "email already taken"})
     return Response(201, result)
+
+
+def _list_brokers(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    """List the agent org's brokers (name + recipient + mailbox). Any agent-org member may read;
+    creating/editing is admin-only (below)."""
+    agent_org_id, err = _resolve_agent_org(conn, req.user_id, req.body)
+    if err:
+        return err
+    out = []
+    for a in repo.broker_accounts_for_agent(conn, agent_org_id):
+        bn = conn.execute("SELECT name FROM brokers WHERE id=?", (a.broker_id,)).fetchone()
+        out.append({"account_id": a.id, "broker_id": a.broker_id,
+                    "name": bn["name"] if bn else a.broker_id,
+                    "mailbox": a.mailbox, "broker_email": a.broker_email})
+    return Response(200, {"brokers": out})
+
+
+def _create_broker(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    b = req.body
+    name, broker_email = b.get("name"), b.get("broker_email")
+    if not name or not broker_email:
+        return Response(400, {"error": "name and broker_email required"})
+    agent_org_id, err = _require_agent_admin(conn, req.user_id, b)
+    if err:
+        return err
+    try:
+        result = router.add_broker(conn, agent_org_id=agent_org_id, name=name,
+                                   broker_email=broker_email, mailbox=b.get("mailbox"))
+    except ValueError as e:      # e.g. mailbox already claimed by another agent org
+        return Response(400, {"error": str(e)})
+    return Response(201, result)
+
+
+def _update_broker(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    broker_email = req.body.get("broker_email")
+    if not broker_email:
+        return Response(400, {"error": "broker_email required"})
+    agent_org_id, err = _require_agent_admin(conn, req.user_id, req.body)
+    if err:
+        return err
+    result = router.set_broker_email(conn, agent_org_id=agent_org_id,
+                                     account_id=m.group("aid"), broker_email=broker_email)
+    if result is None:
+        return Response(404, {"error": "no such broker account"})
+    return Response(200, result)
 
 
 def _create_invite(req, conn, llm, transport, wechat, m, _secret) -> Response:
@@ -383,6 +438,9 @@ _ROUTES = [
     ("POST", re.compile(r"^/invites$"), _create_invite, True),
     ("POST", re.compile(r"^/onboard-customer$"), _onboard_customer, True),
     ("POST", re.compile(r"^/agents$"), _add_agent, True),
+    ("GET", re.compile(r"^/brokers$"), _list_brokers, True),
+    ("POST", re.compile(r"^/brokers$"), _create_broker, True),
+    ("POST", re.compile(r"^/brokers/(?P<aid>[^/]+)$"), _update_broker, True),
     ("POST", re.compile(r"^/inbound$"), _inbound, False),  # webhook: no user auth
 ]
 

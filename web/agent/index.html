@@ -84,6 +84,22 @@
       <div id="agErr" class="err"></div>
       <div id="agOk" class="muted"></div>
     </div>
+    <div class="card" style="margin-top:12px">
+      <div class="row" style="justify-content:space-between">
+        <strong>经纪人 / Brokers</strong><button onclick="loadBrokers()">刷新 / Refresh</button>
+      </div>
+      <div class="muted" style="margin:4px 0">邮件将发往各经纪人的收件地址(仅管理员可增改)</div>
+      <div id="brokers"></div>
+      <input id="brName" placeholder="经纪人名称 / Broker name"
+             style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
+      <input id="brEmail" placeholder="收件邮箱 / recipient email"
+             style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
+      <input id="brMailbox" placeholder="发件邮箱(选填)/ sending mailbox (optional)"
+             style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
+      <button class="primary" onclick="addBroker()">添加 / Add</button>
+      <div id="brErr" class="err"></div>
+      <div id="brOk" class="muted"></div>
+    </div>
   </div>
   <div class="card">
     <div id="detail"><p class="muted">选择一个案件。 Select a case.</p></div>
@@ -133,6 +149,52 @@ async function onboardCustomer() {
   document.getElementById("onbPw").value = "";
 }
 
+async function loadBrokers() {
+  const el = document.getElementById("brokers");
+  if (!TOKEN) { el.innerHTML = ""; return; }
+  const { status, data } = await api("GET", "/brokers");
+  if (status !== 200) { el.innerHTML = `<p class="err">${status} ${esc(data.error||"")}</p>`; return; }
+  if (!data.brokers.length) { el.innerHTML = '<p class="muted">无经纪人 / No brokers</p>'; return; }
+  el.innerHTML = data.brokers.map(b => `
+    <div class="row" style="justify-content:space-between;margin:4px 0">
+      <span><strong>${esc(b.name)}</strong>${b.mailbox ? ` <span class="muted">via ${esc(b.mailbox)}</span>` : ""}</span>
+    </div>
+    <div class="row" style="gap:6px">
+      <input id="bre-${esc(b.account_id)}" value="${esc(b.broker_email||"")}"
+             style="flex:1;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
+      <button onclick="saveBrokerEmail('${esc(b.account_id)}')">保存 / Save</button>
+    </div>`).join("");
+}
+
+async function addBroker() {
+  const err = document.getElementById("brErr"), ok = document.getElementById("brOk");
+  err.textContent = ""; ok.textContent = "";
+  const name = document.getElementById("brName").value.trim();
+  const broker_email = document.getElementById("brEmail").value.trim();
+  const mailbox = document.getElementById("brMailbox").value.trim();
+  if (!name || !broker_email) { err.textContent = "请填写名称与收件邮箱 / name + recipient required"; return; }
+  const body = { name, broker_email };
+  if (mailbox) body.mailbox = mailbox;
+  const { status, data } = await api("POST", "/brokers", body);
+  if (status !== 201) { err.textContent = `${status} ${data.error || "失败 / failed"}`; return; }
+  ok.textContent = `已添加 / added — ${esc(data.name)} → ${esc(data.broker_email)}`;
+  document.getElementById("brName").value = "";
+  document.getElementById("brEmail").value = "";
+  document.getElementById("brMailbox").value = "";
+  loadBrokers();
+}
+
+async function saveBrokerEmail(accountId) {
+  const err = document.getElementById("brErr"), ok = document.getElementById("brOk");
+  err.textContent = ""; ok.textContent = "";
+  const broker_email = document.getElementById("bre-" + accountId).value.trim();
+  if (!broker_email) { err.textContent = "收件邮箱不可为空 / recipient required"; return; }
+  const { status, data } = await api("POST", "/brokers/" + encodeURIComponent(accountId),
+                                     { broker_email });
+  if (status !== 200) { err.textContent = `${status} ${data.error || "失败 / failed"}`; return; }
+  ok.textContent = `已更新 / updated → ${esc(data.broker_email)}`;
+}
+
 async function api(method, path, body) {
   const opt = { method, headers: { ...headers() } };
   if (body !== undefined) { opt.headers["Content-Type"] = "application/json";
@@ -166,12 +228,14 @@ async function login() {
   document.getElementById("pw").value = "";
   setSignedIn(data.user && (data.user.name || data.user.id));
   loadCases();
+  loadBrokers();
 }
 
 function logout() {
   TOKEN = ""; localStorage.removeItem("token");
   setSignedIn(null);
   document.getElementById("cases").innerHTML = "";
+  document.getElementById("brokers").innerHTML = "";
   document.getElementById("detail").innerHTML = '<p class="muted">选择一个案件。 Select a case.</p>';
 }
 
@@ -261,7 +325,7 @@ async function act(caseId, msgId, action) {
   openCase(caseId);
 }
 
-if (TOKEN) { setSignedIn(true); loadCases(); }   // restore a stored session on load
+if (TOKEN) { setSignedIn(true); loadCases(); loadBrokers(); }   // restore a stored session on load
 </script>
 </body>
 </html>
