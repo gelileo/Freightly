@@ -4,7 +4,7 @@ re-running is a no-op if the demo users already exist.
     python3 scripts/seed_demo.py            # DB: ./hs.db (or $HS_DB)
 
 Then log in on the running site (python3 scripts/serve_local.py):
-  • Agent console  http://127.0.0.1:8000/          → X-User-Id:  op   (Justnano operator)
+  • Agent console  http://127.0.0.1:8000/          → email op@justnanoinc.com / password agent-demo
   • Customer app   http://127.0.0.1:8000/customer   → X-User-Id:  uc   (Acme customer)
 """
 import os
@@ -12,8 +12,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import db, repo
+from app import db, repo, auth
 from app.config import load_env
+
+DEMO_AGENT_PW = "agent-demo"
 
 
 def main():
@@ -23,13 +25,15 @@ def main():
     db.init_db(conn)
 
     if conn.execute("SELECT 1 FROM users WHERE id='op'").fetchone():
-        print(f"demo data already present in {db_path}. Log in as 'op' (agent) / 'uc' (customer).")
+        print(f"demo data already present in {db_path}. Agent: op@justnanoinc.com / '{DEMO_AGENT_PW}'"
+              " (reset via scripts/set_agent_password.py); Customer: X-User-Id 'uc'.")
         return
 
     # agent org + operator
     repo.create_org(conn, "Justnano", "agent", id="agent")
     repo.create_user(conn, "Hughson (agent)", "email", "op@justnanoinc.com", id="op")
     repo.add_member(conn, "op", "agent", "operator")
+    auth.set_password(conn, "op", DEMO_AGENT_PW)   # agent logs in with email + password
 
     # customer org + member
     repo.create_org(conn, "Acme Shipping", "customer", id="cust")
@@ -51,7 +55,10 @@ def main():
     print("  agent org 'Justnano' (id=agent), operator user id='op'")
     print("  customer org 'Acme Shipping' (id=cust), member user id='uc'")
     print("  active engagement 'eng'; broker 'Priority-1' via mailbox", mailbox)
-    print("\nLog in — Agent console: X-User-Id 'op'   |   Customer app: X-User-Id 'uc'")
+    print("\nLog in —")
+    print(f"  Agent console (/):        email 'op@justnanoinc.com'  password '{DEMO_AGENT_PW}'")
+    print("  Customer app (/customer): X-User-Id 'uc'")
+    print("  (reset/set an agent password: python3 scripts/set_agent_password.py <email> <pw>)")
 
 
 if __name__ == "__main__":

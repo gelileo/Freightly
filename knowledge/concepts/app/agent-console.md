@@ -55,3 +55,7 @@ open it → **Approve & send** → the message becomes `sent` and the case advan
 
 Real login/session, customer-facing frontends (WeChat Mini Program + responsive web — separate
 toolchains), pagination, and richer case filtering are later slices.
+
+## Login (updated 2026-07-12)
+
+The console now logs in with **email + password** (`POST /auth/login` → session token) and sends `Authorization: Bearer <token>` on every call; on 401 it clears the token and returns to the login prompt. Passwords are provisioned out-of-band (`scripts/set_agent_password.py`, or `seed_demo.py` for the demo operator). Replaces the earlier type-any `X-User-Id` login. See `concepts/app/identity-model.md` → Email/password login.

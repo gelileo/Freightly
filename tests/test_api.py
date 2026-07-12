@@ -270,6 +270,22 @@ def test_login_bad_code_400():
     assert _d(c, "POST", "/auth/wechat/login", body={}).status == 400
 
 
+def test_agent_password_login():
+    c = _net()
+    from app import auth
+    auth.set_password(c, "op", "s3cret-pw")     # op is an agent operator (email op@x)
+    # look up op's email (auth_id) from the fixture
+    email = c.execute("SELECT auth_id FROM users WHERE id='op'").fetchone()["auth_id"]
+    assert _d(c, "POST", "/auth/login", body={"email": email, "password": "nope"}).status == 401
+    r = _d(c, "POST", "/auth/login", body={"email": email, "password": "s3cret-pw"})
+    assert r.status == 200 and r.body["user"]["id"] == "op"
+    token = r.body["session_token"]
+    # the returned session authenticates subsequent calls via Bearer (no X-User-Id)
+    assert _d(c, "GET", "/cases", headers={"Authorization": f"Bearer {token}"}).status == 200
+    # missing fields → 400
+    assert _d(c, "POST", "/auth/login", body={"email": email}).status == 400
+
+
 def test_onboard_customer_flow():
     c = _net()   # 'op' is an operator in agent org 'agent'
     r = _d(c, "POST", "/onboard-customer", user="op",

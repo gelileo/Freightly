@@ -253,6 +253,18 @@ def _auth_wechat_login(req, conn, llm, transport, wechat, m, _secret) -> Respons
                           "needs_bind": needs_bind})
 
 
+def _auth_login(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    from app import auth
+    email, password = req.body.get("email"), req.body.get("password")
+    if not email or not password:
+        return Response(400, {"error": "email and password required"})
+    result = auth.login_password(conn, email, password)
+    if result is None:
+        return Response(401, {"error": "invalid email or password"})
+    token, user = result
+    return Response(200, {"session_token": token, "user": asdict(user)})
+
+
 def _auth_bind(req, conn, llm, transport, wechat, m, _secret) -> Response:
     from app import auth
     code = req.body.get("code")
@@ -332,6 +344,7 @@ _ROUTES = [
      _message_action("edit"), True),
     ("POST", re.compile(r"^/cases/(?P<cid>[^/]+)/messages/(?P<mid>[^/]+)/reject$"),
      _message_action("reject"), True),
+    ("POST", re.compile(r"^/auth/login$"), _auth_login, False),
     ("POST", re.compile(r"^/auth/wechat/login$"), _auth_wechat_login, False),
     ("POST", re.compile(r"^/auth/bind$"), _auth_bind, True),
     ("POST", re.compile(r"^/auth/logout$"), _auth_logout, True),
