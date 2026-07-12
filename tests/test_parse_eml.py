@@ -48,7 +48,7 @@ def test_split_turns_outlook_style():
     from scripts.parse_eml import split_turns, Turn
     text = (
         "Latest reply body.\n"
-        "From: hs@justnanoinc.com\n"
+        "From: hs@example.com\n"
         "Sent: Wednesday, July 8, 2026 1:23 PM\n"
         "To: William Jerry\n"
         "Subject: Re: BOL 123\n"
@@ -113,12 +113,12 @@ def test_parse_from_bytes_matches_path(sample_pickup):
 
 
 def test_parse_bytes_reads_threading_headers():
-    raw = (b"Message-ID: <abc@justnanoinc.com>\r\n"
-           b"In-Reply-To: <root@justnanoinc.com>\r\n"
-           b"References: <root@justnanoinc.com>\r\n"
+    raw = (b"Message-ID: <abc@example.com>\r\n"
+           b"In-Reply-To: <root@example.com>\r\n"
+           b"References: <root@example.com>\r\n"
            b"Subject: Re: BOL 60114821897\r\nFrom: broker@example.com\r\n\r\n"
            b"Hello, per your BOL 60114821897.\r\n")
     pe = parse_eml_bytes(raw)
-    assert pe.message_id == "<abc@justnanoinc.com>"
-    assert pe.in_reply_to == "<root@justnanoinc.com>"
-    assert pe.references == "<root@justnanoinc.com>"
+    assert pe.message_id == "<abc@example.com>"
+    assert pe.in_reply_to == "<root@example.com>"
+    assert pe.references == "<root@example.com>"

@@ -62,7 +62,7 @@ python3 scripts/serve_local.py    # serves / (agent) + /customer + /api on http:
   calls, approving an email does NOT send); `USE_REAL_SERVICES=1` wires the real ones from `.env`.
 - `seed_demo.py` creates an agent org (`Justnano`, operator **`op`**), a customer org
   (`Acme Shipping`, member **`uc`**), an active engagement, and a broker account. **Log in by
-  typing the `X-User-Id`:** agent console → email `op@justnanoinc.com` / password `agent-demo` (set via `seed_demo.py`; reset with `scripts/set_agent_password.py`), customer app → X-User-Id `uc`. New customers are added from the **agent console's "Onboard customer" panel**
+  typing the `X-User-Id`:** agent console → email `op@example.com` / password `agent-demo` (set via `seed_demo.py`; reset with `scripts/set_agent_password.py`), customer app → X-User-Id `uc`. New customers are added from the **agent console's "Onboard customer" panel**
   (`POST /onboard-customer` → customer org + active engagement + a web-login id), or by extending the seed.
 
 ## DB backend (`app/db.py`)
@@ -91,7 +91,7 @@ vercel link
 vercel env add LIBSQL_URL
 vercel env add LIBSQL_AUTH_TOKEN
 vercel env add GEMINI_API_KEY
-vercel env add SMTP_ADDRESS             # hs@justnanoinc.com
+vercel env add SMTP_ADDRESS             # hs@example.com
 vercel env add SMTP_PASSWORD            # 16-digit Alibaba app password
 vercel env add WEBHOOK_SECRET           # for POST /api/inbound
 # optional: CRON_SECRET (guards /api/poll), IMAP_HOST/PORT (default qiye.aliyun.com:993)

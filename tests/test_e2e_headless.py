@@ -10,7 +10,7 @@ from engine.llm import FakeLlmClient
 def _org_setup(c):
     repo.create_org(c, "AcmeImports", "customer", id="cust")
     repo.create_org(c, "Justnano", "agent", id="agent")
-    repo.create_user(c, "Operator", "email", "op@justnano.com", id="op")
+    repo.create_user(c, "Operator", "email", "op@example.com", id="op")
     repo.add_member(c, "op", "agent", "operator")
     repo.create_engagement(c, "cust", "agent", id="eng"); repo.approve_engagement(c, "eng")
     repo.create_broker(c, "Priority-1", id="p1")

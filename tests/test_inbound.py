@@ -4,7 +4,7 @@ from engine.llm import FakeLlmClient
 from app.inbound import poll_once
 
 LLM = FakeLlmClient()
-MB = "hs@justnanoinc.com"
+MB = "hs@example.com"
 
 
 def _db():
@@ -37,7 +37,7 @@ def _seed_case_awaiting(conn):
     repo.connect_broker_account(conn, "agent", "p1", mailbox=MB, broker_email="b@x.com", id="ba")
     c = cases.create_case(conn, agent_org_id="agent", customer_org_id="cust", origin="customer",
                           broker_account_id="ba", bol="60114338678", issue_type="pickup",
-                          mail_thread_id="<root@justnanoinc.com>")
+                          mail_thread_id="<root@example.com>")
     cases.transition(conn, c.id, "DRAFTING", actor="t", action="x")
     cases.add_message(conn, case_id=c.id, party="agent", channel="email", lang="en",
                       body="draft", status="pending_approval")
@@ -59,8 +59,8 @@ def test_new_reply_matched_to_case_becomes_zh_pending():
     c = _db()
     case = _seed_case_awaiting(c)
     c.execute("INSERT INTO imap_state (mailbox, last_uid, uidvalidity) VALUES (?,0,'100')", (MB,))
-    reply = (b"Message-ID: <r1@x.com>\r\nIn-Reply-To: <root@justnanoinc.com>\r\n"
-             b"References: <root@justnanoinc.com>\r\nSubject: Re: BOL 60114338678\r\n"
+    reply = (b"Message-ID: <r1@x.com>\r\nIn-Reply-To: <root@example.com>\r\n"
+             b"References: <root@example.com>\r\nSubject: Re: BOL 60114338678\r\n"
              b"From: b@x.com\r\n\r\nDelivered on the 6th. POD attached.\r\n")
     out = poll_once(c, FakeImap({5: reply}), mailbox_addr=MB, llm=LLM)
     assert out == [case.id]
@@ -75,7 +75,7 @@ def test_duplicate_message_id_is_idempotent():
     c = _db()
     _seed_case_awaiting(c)
     c.execute("INSERT INTO imap_state (mailbox, last_uid, uidvalidity) VALUES (?,0,'100')", (MB,))
-    reply = (b"Message-ID: <dup@x.com>\r\nIn-Reply-To: <root@justnanoinc.com>\r\n"
+    reply = (b"Message-ID: <dup@x.com>\r\nIn-Reply-To: <root@example.com>\r\n"
              b"Subject: Re: BOL 60114338678\r\nFrom: b@x.com\r\n\r\nfollow up\r\n")
     poll_once(c, FakeImap({5: reply}), mailbox_addr=MB, llm=LLM)
     before = c.execute("SELECT COUNT(*) n FROM messages").fetchone()["n"]
@@ -105,8 +105,8 @@ def test_transient_llm_failure_does_not_strand_reply():
     c = _db()
     case = _seed_case_awaiting(c)
     c.execute("INSERT INTO imap_state (mailbox, last_uid, uidvalidity) VALUES (?,0,'100')", (MB,))
-    reply = (b"Message-ID: <r1@x.com>\r\nIn-Reply-To: <root@justnanoinc.com>\r\n"
-             b"References: <root@justnanoinc.com>\r\nSubject: Re: BOL 60114338678\r\n"
+    reply = (b"Message-ID: <r1@x.com>\r\nIn-Reply-To: <root@example.com>\r\n"
+             b"References: <root@example.com>\r\nSubject: Re: BOL 60114338678\r\n"
              b"From: b@x.com\r\n\r\nDelivered on the 6th.\r\n")
     flaky = FlakyLlm()
     # poll 1: summarize raises -> break, nothing persisted, watermark unchanged

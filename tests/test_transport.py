@@ -15,7 +15,7 @@ def _net():
     repo.create_user(c, "op", "email", "op@x", id="op"); repo.add_member(c, "op", "agent", "operator")
     repo.create_engagement(c, "cust", "agent", id="eng"); repo.approve_engagement(c, "eng")
     repo.create_broker(c, "P1", id="p1")
-    repo.connect_broker_account(c, "agent", "p1", mailbox="agent@justnano.com",
+    repo.connect_broker_account(c, "agent", "p1", mailbox="agent@example.com",
                                 broker_email="ltlwest@priority1.com", id="ba")
     return c
 
@@ -43,7 +43,7 @@ def test_gmail_transport_constructs_without_google_libs():
 def test_broker_email_roundtrips():
     c = _net()
     acct = repo.broker_account(c, "ba")
-    assert acct.broker_email == "ltlwest@priority1.com" and acct.mailbox == "agent@justnano.com"
+    assert acct.broker_email == "ltlwest@priority1.com" and acct.mailbox == "agent@example.com"
 
 
 def _open_case(c, t):
@@ -69,7 +69,7 @@ def test_send_on_approval_and_thread_continuity():
     # exactly one send, to the broker, from the agent's mailbox
     assert len(t.sent) == 1
     assert t.sent[0]["to"] == "ltlwest@priority1.com"
-    assert t.sent[0]["from_addr"] == "agent@justnano.com"
+    assert t.sent[0]["from_addr"] == "agent@example.com"
     # message stamped with the returned mail id; case stamped with the thread id
     mmid = c.execute("SELECT mail_message_id FROM messages WHERE id=?", (mid,)).fetchone()[0]
     assert mmid == "fakemsg-1"
@@ -78,7 +78,7 @@ def test_send_on_approval_and_thread_continuity():
     assert r.body["case"]["status"] == "AWAITING_BROKER"
     # a broker reply on that thread matches the SAME case (no new case)
     out = router.ingest_broker_email(c, eml="tests/fixtures/FFBA BOL# 60112079078.eml",
-                                     to_mailbox="agent@justnano.com", thread_id=tid, llm=LLM)
+                                     to_mailbox="agent@example.com", thread_id=tid, llm=LLM)
     assert out.id == cid and out.status == "PENDING_APPROVAL"
     assert c.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 1
 
@@ -128,7 +128,7 @@ def test_approval_without_recipient_is_409_and_sends_nothing():
     repo.create_user(c, "op", "email", "op@x", id="op"); repo.add_member(c, "op", "agent", "operator")
     repo.create_engagement(c, "cust", "agent", id="eng"); repo.approve_engagement(c, "eng")
     repo.create_broker(c, "P1", id="p1")
-    repo.connect_broker_account(c, "agent", "p1", mailbox="agent@justnano.com", id="ba")  # NO broker_email
+    repo.connect_broker_account(c, "agent", "p1", mailbox="agent@example.com", id="ba")  # NO broker_email
     t = FakeTransport()
     cid, mid = _open_case(c, t)
     r = _d(c, "POST", f"/cases/{cid}/messages/{mid}/approve", user="op", t=t)
@@ -149,16 +149,16 @@ class FakeSmtp:
 
 def test_alibaba_smtp_sends_with_threading_headers():
     fake = FakeSmtp()
-    t = AlibabaSmtpTransport(address="hs@justnanoinc.com", password="pw16",
+    t = AlibabaSmtpTransport(address="hs@example.com", password="pw16",
                              smtp_factory=lambda h, p: fake)
-    ref = t.send(from_addr="hs@justnanoinc.com", to="broker@x.com", subject="BOL 1",
+    ref = t.send(from_addr="hs@example.com", to="broker@x.com", subject="BOL 1",
                  body="hi", thread_id=None, in_reply_to=None)
-    assert fake.logged_in == ("hs@justnanoinc.com", "pw16")
+    assert fake.logged_in == ("hs@example.com", "pw16")
     msg = fake.sent[0]
-    assert msg["From"] == "hs@justnanoinc.com" and msg["To"] == "broker@x.com"
+    assert msg["From"] == "hs@example.com" and msg["To"] == "broker@x.com"
     assert msg["Message-ID"] and ref.message_id == msg["Message-ID"]
     assert ref.thread_id == ref.message_id
-    ref2 = t.send(from_addr="hs@justnanoinc.com", to="broker@x.com", subject="Re",
+    ref2 = t.send(from_addr="hs@example.com", to="broker@x.com", subject="Re",
                   body="more", thread_id=ref.message_id, in_reply_to=ref.message_id)
     m2 = fake.sent[1]
     assert m2["In-Reply-To"] == ref.message_id and m2["References"] == ref.message_id
@@ -167,7 +167,7 @@ def test_alibaba_smtp_sends_with_threading_headers():
 
 def test_alibaba_smtp_rejects_wrong_from():
     import pytest
-    t = AlibabaSmtpTransport(address="hs@justnanoinc.com", password="pw",
+    t = AlibabaSmtpTransport(address="hs@example.com", password="pw",
                              smtp_factory=lambda h, p: FakeSmtp())
     with pytest.raises(ValueError):
         t.send(from_addr="someone@else.com", to="b@x.com", subject="s", body="b")
@@ -183,5 +183,5 @@ def test_live_smtp_login_only():
     from app.config import load_env
     load_env()
     with smtplib.SMTP_SSL("smtp.qiye.aliyun.com", 465, timeout=25) as s:
-        s.login(_os.environ.get("SMTP_ADDRESS", "hs@justnanoinc.com"), _os.environ["SMTP_PASSWORD"])
+        s.login(_os.environ.get("SMTP_ADDRESS", "hs@example.com"), _os.environ["SMTP_PASSWORD"])
     # login only — no message sent

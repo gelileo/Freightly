@@ -224,7 +224,7 @@ article's history — see `knowledge/log.md` for the compile trail).
 ## Live mail loop (2026-07-11)
 
 The inbound→draft→approve→send loop now runs against the real shipper mailbox
-(`hs@justnanoinc.com`, Alibaba Enterprise Mail): the **IMAP poller** (`app/inbound.py`) pulls new
+(`hs@example.com`, Alibaba Enterprise Mail): the **IMAP poller** (`app/inbound.py`) pulls new
 broker replies (UID-watermarked, read-only — never touches the human mailbox's flags), matches
 them to the originating case by header-derived thread id, and produces an approval-gated ZH
 customer update; **`AlibabaSmtpTransport`** sends the agent-approved English broker email. Both

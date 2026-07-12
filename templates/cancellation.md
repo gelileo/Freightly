@@ -27,5 +27,5 @@ Thank you,
 
 ## Examples
 
-- `LTL-mail/Re_ Cancel shipment --- 60114304778.eml`(客户:"Please cancel this shipment... our login ID is huang@justnanoinc.com, we only book a shipment but can not cancel it under this same ID."；broker:"canceled")
+- `LTL-mail/Re_ Cancel shipment --- 60114304778.eml`(客户:"Please cancel this shipment... our login ID is huang@example.com, we only book a shipment but can not cancel it under this same ID."；broker:"canceled")
 - `LTL-mail/Re_ Cancel --- 60113887167.eml`

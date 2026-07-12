@@ -739,7 +739,7 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - Deferred (unchanged): 小程序码 image gen, Subscription-Message push, payments, phone capture.
 
 ## 2026-07-11 — Alibaba mail transport (SMTP send + IMAP inbound poller)
-- New live mail provider for hs@justnanoinc.com (Alibaba Enterprise Mail), SMTP/IMAP + 16-digit
+- New live mail provider for hs@example.com (Alibaba Enterprise Mail), SMTP/IMAP + 16-digit
   third-party client password (stdlib, zero deps). Verified live: smtp.qiye.aliyun.com:465 login,
   imap.qiye.aliyun.com:993 read-only login.
 - `app/transport.py`: `AlibabaSmtpTransport` (SMTP-SSL, from-guard, Message-ID/In-Reply-To
@@ -823,7 +823,7 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   (_mint_session refactor). POST /auth/login {email,password} → {session_token,user} (401 bad).
 - Agent console now logs in with email+password → Authorization: Bearer <token> (localStorage);
   401 → auto-logout. Customer web app unchanged (X-User-Id) for now.
-- scripts/set_agent_password.py <email> <pw>; seed_demo.py sets demo operator op@justnanoinc.com /
+- scripts/set_agent_password.py <email> <pw>; seed_demo.py sets demo operator op@example.com /
   'agent-demo'. schema.sql regenerated (password_hash).
 - Verified live (Playwright): bad password rejected (no token); correct password → Bearer session,
   signed in. Tests: test_auth (hash/verify, login_password), test_api (/auth/login flow). 141 passed.
@@ -848,7 +848,7 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   operator/admin (email+password) in the caller's org; optional password or generated temp
   (returned); 409 on email collision; role ∈ {operator, admin}. Shared _resolve_agent_org helper
   (refactored from onboarding). Agent console gains an "Add operator" panel.
-- Verified live (Playwright): op adds dana@justnanoinc.com → dana logs in via /auth/login.
+- Verified live (Playwright): op adds dana@example.com → dana logs in via /auth/login.
 - Tests: test_router (add_agent_operator), test_api (flow, 409, bad-role 400, customer 403). 143 passed.
 - Docs: identity-model.md, api.md, agent-console.md, log.
 

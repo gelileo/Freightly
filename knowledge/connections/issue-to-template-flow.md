@@ -129,7 +129,7 @@ broker 的既成表态。
   `{customer_request}` 说明为何常规配送不可行,请求 broker 联系承运商确认可行方案。
 - **`offered-alternative`**(客户转述承运商方案,**非 broker 原话**:"may need a flatbed
   truck or box truck to deliver to the customer's door",`cases/60114821897` Turn 1 由
-  `hs@justnanoinc.com` 所写)——`{customer_request}` 明确提出具体替代方案(平板车/箱式车,
+  `hs@example.com` 所写)——`{customer_request}` 明确提出具体替代方案(平板车/箱式车,
   或改到 terminal 自提),让 broker 向承运商确认是否可行及是否有额外费用(不承诺理赔口径,
   不臆造费用数字)。
 - **`accepted`**(真实 broker 引文:"Working on this",`cases/60114821897`)——默认分支:

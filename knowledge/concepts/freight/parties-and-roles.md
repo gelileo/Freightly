@@ -84,7 +84,7 @@ Verified against the 71-file `LTL-mail/` corpus and generated `cases/<BOL>/threa
   Lauren Moore, Shyra Shannel Dela Cruz, plus named reps like Jalen Turner. When drafting,
   address the human name from the latest reply's signature; fall back to "team".
 - The shipper side is consistently the shipper operator / shipper company (configured mailbox;
-  booking login `huang@justnanoinc.com`).
+  booking login `huang@example.com`).
 - **One carrier named so far:** AAA Cooper (code SCM); other carriers (e.g. ABF, seen as
   "Relayed to ABF") appear only as broker mentions, never as direct correspondents — the
   shipper→broker→carrier chain holds throughout.

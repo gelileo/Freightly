@@ -82,7 +82,7 @@ vercel link
 vercel env add LIBSQL_URL
 vercel env add LIBSQL_AUTH_TOKEN
 vercel env add GEMINI_API_KEY
-vercel env add SMTP_ADDRESS             # hs@justnanoinc.com
+vercel env add SMTP_ADDRESS             # hs@example.com
 vercel env add SMTP_PASSWORD            # 16 位阿里应用密码
 vercel env add WEBHOOK_SECRET           # 供 POST /api/inbound
 # 可选:CRON_SECRET(保护 /api/poll)、IMAP_HOST/PORT(默认 qiye.aliyun.com:993)

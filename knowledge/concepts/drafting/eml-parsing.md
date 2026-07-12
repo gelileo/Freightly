@@ -21,7 +21,7 @@ Deterministic decoding of raw `.eml` into a clean, chronological thread. Kept as
    (signature logos — in the sample, 12 repeating PNGs made up most of the 165 KB).
 3. Split the quoted history into individual turns. **As built, `Turn` = `marker` + `body`**
    — the sender/timestamp are not separate fields; they live unstructured inside the
-   `marker` line (e.g. `On May 21, 2026 … hs@justnanoinc.com wrote:`).
+   `marker` line (e.g. `On May 21, 2026 … hs@example.com wrote:`).
    **Two quoting formats appear and both must be handled** (see below).
 4. Extract `BOL` and `PRO#` numbers and the involved parties.
 5. Dedupe thread snapshots: `Re_ … 60114662390(1..8).eml` are usually one growing thread.

@@ -31,7 +31,7 @@ guarded and never imported/hit without creds (CI stays hermetic).
   RFC-822 `EmailMessage` with `In-Reply-To`/`References` for threading, calls
   `users().messages().send()`, returns the Gmail message + thread ids. **Deferred imports**, so
   `import app.transport` and even constructing `GmailTransport` work without the library.
-- `AlibabaSmtpTransport` — real adapter for **Alibaba Enterprise Mail** (`hs@justnanoinc.com`)
+- `AlibabaSmtpTransport` — real adapter for **Alibaba Enterprise Mail** (`hs@example.com`)
   over **SMTP-SSL** using the **16-digit third-party client password** (stdlib `smtplib`, zero
   deps). Sets a generated `Message-ID` + `In-Reply-To`/`References`; returns
   `SentRef(message_id, thread_id=References-root)`. **`from_addr` is locked** to the authenticated
@@ -74,7 +74,7 @@ outbound→inbound loop with no new case.
   `setdefault`; `.env` is gitignored). Called by both factories so keys in `.env` are picked up.
 - `make_llm()` → `GeminiLlmClient` when `GEMINI_API_KEY` is set (incl. from `.env`), else `FakeLlmClient`.
 - `make_transport()` precedence: **`AlibabaSmtpTransport`** (when `SMTP_PASSWORD` set;
-  `SMTP_ADDRESS` default `hs@justnanoinc.com`, `SMTP_HOST`/`SMTP_PORT` default
+  `SMTP_ADDRESS` default `hs@example.com`, `SMTP_HOST`/`SMTP_PORT` default
   `smtp.qiye.aliyun.com`/`465`) → `GmailTransport` (`GMAIL_TOKEN_FILE`) → `FakeTransport`.
 - `make_imap_config()` → `{host,port,address,password}` for the inbound poller
   (`IMAP_HOST`/`IMAP_PORT` default `imap.qiye.aliyun.com`/`993`).
