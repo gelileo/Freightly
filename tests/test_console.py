@@ -19,7 +19,8 @@ def _factory():
 
 def test_console_served_and_api_still_json():
     srv = ThreadingHTTPServer(("127.0.0.1", 0),
-                              make_handler(_factory, FakeLlmClient(), web_root=WEB_ROOT))
+                              make_handler(_factory, FakeLlmClient(), web_root=WEB_ROOT,
+                                           trust_user_header=True))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         port = srv.server_address[1]

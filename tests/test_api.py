@@ -28,7 +28,8 @@ def _net():
 def _d(c, method, path, user=None, body=None, headers=None, transport=None):
     return dispatch(Request(method=method, path=path, user_id=user, headers=headers or {},
                             body=body or {}), conn=c, llm=LLM,
-                    transport=transport or FakeTransport(), webhook_secret=SECRET, wechat=WX)
+                    transport=transport or FakeTransport(), webhook_secret=SECRET, wechat=WX,
+                    trust_user_header=True)
 
 
 def test_unknown_route_and_auth():
@@ -198,7 +199,7 @@ def test_malformed_requests_are_400_not_crashes():
     assert r.status == 400
     # a non-object JSON body → 400 (not AttributeError on .get)
     r = dispatch(Request(method="POST", path="/cases", user_id="uc", body=["not", "a", "dict"]),
-                 conn=c, llm=LLM, webhook_secret=SECRET)
+                 conn=c, llm=LLM, webhook_secret=SECRET, trust_user_header=True)
     assert r.status == 400
 
 
@@ -340,6 +341,25 @@ def test_onboard_customer_agent_only():
               body={"customer_name": "X", "login": "y"}).status == 403
     # missing fields → 400
     assert _d(c, "POST", "/onboard-customer", user="op", body={"customer_name": "X"}).status == 400
+
+
+def test_x_user_id_ignored_when_not_trusted():
+    # production lock-down: with trust_user_header=False (default), a client-supplied X-User-Id is
+    # ignored — only a real Bearer session authenticates.
+    c = _net()
+    def d(method, path, user=None, headers=None):
+        return dispatch(Request(method=method, path=path, user_id=user, headers=headers or {}),
+                        conn=c, llm=LLM, transport=FakeTransport(), webhook_secret=SECRET,
+                        wechat=WX)  # trust_user_header defaults to False
+    # spoofed X-User-Id on a protected route → 401 (not honored)
+    assert d("GET", "/cases", user="op").status == 401
+    assert d("GET", "/cases", headers={"X-User-Id": "op"}).status == 401
+    # a valid Bearer session still authenticates
+    from app import auth
+    auth.set_password(c, "op", "pw")
+    email = c.execute("SELECT auth_id FROM users WHERE id='op'").fetchone()["auth_id"]
+    tok = _d(c, "POST", "/auth/login", body={"email": email, "password": "pw"}).body["session_token"]
+    assert d("GET", "/cases", headers={"Authorization": f"Bearer {tok}"}).status == 200
 
 
 def test_headers_case_insensitive_for_http2():

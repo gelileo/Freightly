@@ -41,9 +41,12 @@ def main():
 
     print(f"DB: {db_path}   →  http://{host}:{port}/  (agent)   http://{host}:{port}/customer")
     print("Seed demo users first:  python3 scripts/seed_demo.py")
+    # local dev trusts X-User-Id for curl/manual testing; production (Vercel) does NOT — set
+    # TRUST_X_USER_ID=0 here to exercise the production lock-down locally.
+    trust = os.environ.get("TRUST_X_USER_ID", "1") not in ("0", "false", "False", "")
     server.serve(lambda: db.connect(db_path), llm=llm, transport=transport, wechat=wechat,
                  host=host, port=port, webhook_secret=os.environ.get("WEBHOOK_SECRET", "localdev"),
-                 web_root=web_root)
+                 web_root=web_root, trust_user_header=trust)
 
 
 if __name__ == "__main__":

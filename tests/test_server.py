@@ -16,7 +16,8 @@ def _factory():
 
 def test_server_smoke():
     srv = ThreadingHTTPServer(("127.0.0.1", 0),
-                              make_handler(_factory, FakeLlmClient(), webhook_secret="sek"))
+                              make_handler(_factory, FakeLlmClient(), webhook_secret="sek",
+                                           trust_user_header=True))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         port = srv.server_address[1]

@@ -388,13 +388,15 @@ _ROUTES = [
 
 
 def dispatch(req: Request, *, conn, llm, transport=None, webhook_secret=None,
-             wechat=None) -> Response:
+             wechat=None, trust_user_header=False) -> Response:
     path = req.path.split("?", 1)[0]
-    # Resolve a Bearer session token to a user_id (real clients). A valid token sets the identity;
-    # a present-but-invalid token is a *bad* credential — never a silent fall-through to the legacy
-    # X-User-Id header. We defer the 401 until after route matching, though, so a public route
-    # (e.g. /auth/wechat/login) still works when a client's global interceptor attaches a stale
-    # token to the very request meant to re-login. On a protected route a bad token hard-401s.
+    # Identity resolution. A valid `Authorization: Bearer <session>` always wins. The legacy
+    # `X-User-Id` header (which the server pre-loaded into req.user_id) is honored ONLY when
+    # `trust_user_header` is set — local dev / tests behind a trusted boundary. In production
+    # (Vercel) it is False, so a spoofed X-User-Id from the public internet is dropped and only a
+    # real session authenticates. A present-but-invalid Bearer token never falls through to
+    # X-User-Id either; on a protected route it hard-401s (deferred past route matching so a
+    # public route like /auth/wechat/login still works with a stale token attached).
     auth_header = _header(req.headers, "Authorization")
     bearer_present = auth_header.startswith("Bearer ")
     bearer_bad = False
@@ -405,6 +407,8 @@ def dispatch(req: Request, *, conn, llm, transport=None, webhook_secret=None,
             bearer_bad = True
         else:
             req.user_id = uid
+    elif not trust_user_header:
+        req.user_id = None      # ignore any client-supplied X-User-Id when not trusted
     for method, rx, handler, needs_user in _ROUTES:
         if method != req.method:
             continue

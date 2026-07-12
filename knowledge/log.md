@@ -858,3 +858,13 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   agent org (403 otherwise). Seed/test 'op' is now the founding 'admin'. Customer onboarding stays
   open to any operator (creates a customer login in a separate customer org, not agent-org privilege).
 - Tests: operator (jane) adding an operator → 403; admin (op) → 201. 143 passed.
+
+## 2026-07-12 — Production X-User-Id lock-down
+- dispatch gains trust_user_header (default False = secure): when False, a client-supplied
+  X-User-Id is ignored and only a valid Bearer session authenticates. Vercel api/index.py passes
+  False (production); serve_local opts in via TRUST_X_USER_ID (default on) for local curl/testing;
+  server.make_handler/serve thread it. Both web apps already use Bearer, so nothing legitimate
+  relied on X-User-Id except tests (their _d helpers pass trust_user_header=True).
+- Test: spoofed X-User-Id → 401 when not trusted; valid Bearer → 200. Server/console smoke tests
+  opt in. 144 passed.
+- Docs: api.md (auth boundary now enforced), deployment.md, log.

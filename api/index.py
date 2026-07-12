@@ -46,7 +46,8 @@ class handler(BaseHTTPRequestHandler):
         conn = db.connect()   # libSQL when LIBSQL_URL is set (Vercel), else sqlite (local)
         try:
             resp = dispatch(req, conn=conn, llm=llm, transport=transport,
-                            webhook_secret=os.environ.get("WEBHOOK_SECRET"), wechat=wechat)
+                            webhook_secret=os.environ.get("WEBHOOK_SECRET"), wechat=wechat,
+                            trust_user_header=False)  # production: never trust client X-User-Id
         except Exception:
             import traceback
             traceback.print_exc()

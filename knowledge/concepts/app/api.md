@@ -26,11 +26,13 @@ sqlite connections aren't thread-shareable).
 - **Session tokens (WeChat login).** `dispatch` resolves an `Authorization: Bearer <token>` header
   to a `user_id` **before routing** (`auth.resolve_session`, from the WeChat-login adapter). A
   present-but-invalid/expired/revoked token → **401** immediately — never a silent fall-through.
-- **User routes** otherwise trust an upstream-authenticated **`X-User-Id`** header (tests + trusted
-  internal callers). Missing identity on a user route → **401**; every user route then enforces
-  `app.access` (→ **403** on denial). **Production hardening:** behind the real gateway, raw
-  `X-User-Id` from the public internet must not be trusted — only Bearer sessions resolve identity
-  there (recorded, not built).
+- **`X-User-Id`** is honored **only when `dispatch(..., trust_user_header=True)`** — local dev /
+  tests behind a trusted boundary. **Production (Vercel `api/index.py`) passes `False`**, so a
+  client-supplied `X-User-Id` from the public internet is **dropped** and only a valid Bearer
+  session authenticates. `dispatch`'s default is `False` (secure); `serve_local` opts in
+  (`TRUST_X_USER_ID`, default on) for curl/manual testing. Missing identity on a user route →
+  **401**; routes then enforce `app.access` (→ **403**). This closes the earlier gateway-hardening
+  gap at the app layer (network/IP controls remain infra's job).
 - **`POST /inbound`** (mail-transport webhook) authenticates with a shared **`X-Webhook-Secret`**
   (constant-time compare); no user context. Missing/wrong → **401**.
 

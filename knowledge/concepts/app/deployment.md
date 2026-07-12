@@ -113,4 +113,4 @@ vercel deploy
 - Per-request libSQL client creation is fine at low volume; connection reuse/pooling is a
   perf follow-up. SQLite→Postgres remains a further option (repo layer already isolated).
 - WeChat Mini Program (its API base just points at the Vercel domain later).
-- `X-User-Id` production lock-down at the gateway (see `api.md`) before any public prod exposure.
+- `X-User-Id` is dropped in production: the Vercel function calls `dispatch(trust_user_header=False)` — only Bearer sessions authenticate. `serve_local` trusts it (dev); run with `TRUST_X_USER_ID=0` to exercise the prod behavior locally. (Network/IP controls remain infra's job.)

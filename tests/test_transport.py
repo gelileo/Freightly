@@ -22,7 +22,7 @@ def _net():
 
 def _d(c, method, path, user=None, body=None, t=None):
     return dispatch(Request(method=method, path=path, user_id=user, body=body or {}),
-                    conn=c, llm=LLM, transport=t, webhook_secret="x")
+                    conn=c, llm=LLM, transport=t, webhook_secret="x", trust_user_header=True)
 
 
 def test_fake_transport_records_and_preserves_thread():
