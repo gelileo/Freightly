@@ -16,7 +16,9 @@ _SYSTEM = (
     "broker. Fill each remaining {slot} using the provided facts and by translating the "
     "customer's Chinese request into English. Do NOT change the greeting line and do NOT invent "
     "a recipient name. Never invent BOL/PRO numbers, addresses, dates, or amounts — leave any "
-    "unknown factual slot as [[MISSING: key]]."
+    "unknown factual slot as [[MISSING: key]]. The {customer_request} slot is for an ADDITIONAL "
+    "or more-specific ask only: if the customer's message adds nothing beyond what the skeleton "
+    "already states, output {customer_request} as an empty string — do NOT restate the base issue."
 )
 
 
@@ -82,7 +84,13 @@ def draft(req: DraftRequest, llm: LlmClient) -> DraftResult:
     # Deterministically inject the fixed shipper signoff — never trust the LLM for it.
     body = v.body.replace("[[MISSING: shipper_signoff]]", SHIPPER_SIGNOFF) \
                  .replace("{shipper_signoff}", SHIPPER_SIGNOFF)
-    missing = [x for x in v.missing if x != "shipper_signoff"]
+    # customer_request is an OPTIONAL language slot (not a fact): if the LLM left it unfilled,
+    # render it empty and drop its now-blank line, rather than leaking a [[MISSING]] placeholder
+    # (which the send guardrail would block) or a duplicated base line.
+    for token in ("[[MISSING: customer_request]]\n", "{customer_request}\n",
+                  "[[MISSING: customer_request]]", "{customer_request}"):
+        body = body.replace(token, "")
+    missing = [x for x in v.missing if x not in ("shipper_signoff", "customer_request")]
     return DraftResult(triage=t, issue=issue, template_slug=slug, draft_lang=raw.lang,
                        draft_body=body, missing=missing, rejected_slots=v.rejected,
                        warnings=v.warnings)

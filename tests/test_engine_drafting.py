@@ -100,3 +100,18 @@ def test_pro_clause_filled_when_pro_present():
                            source_text="BOL 60114338678 PRO 3100034",
                            issue_override="pickup"), FakeLlmClient())
     assert "(PRO# 3100034)" in r.draft_body
+
+
+def test_customer_request_optional_renders_empty_no_placeholder():
+    # customer_request is an optional language slot: when unfilled it must render empty (not a
+    # [[MISSING]] placeholder) so a fully-specified draft has no placeholders and no repeated line.
+    src = "BOL 60114338678 addr 88 Harbor Blvd contact Grace Liu 562-555-0199"
+    r = draft(DraftRequest(body="请提货", sender="customer", subject="pickup --- 60114338678",
+                           facts={"BOL": "60114338678", "pickup_address": "88 Harbor Blvd",
+                                  "contact_name": "Grace Liu", "contact_phone": "562-555-0199"},
+                           source_text=src, issue_override="pickup"), FakeLlmClient())
+    assert "[[MISSING: customer_request]]" not in r.draft_body
+    assert "{customer_request}" not in r.draft_body
+    assert find_placeholders(r.draft_body) == []
+    # the base statement appears exactly once (no duplicate)
+    assert r.draft_body.count("has not been picked up yet") == 1

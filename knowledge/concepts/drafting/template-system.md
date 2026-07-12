@@ -62,7 +62,9 @@ Slots shared across every template:
   empty clause, never an `[[MISSING: pro_clause]]` placeholder that the send guardrail would block.
 - `{customer_request}` — the customer's WeChat ask, translated to English and condensed to
   one sentence by the drafting skill. Empty string when there is nothing beyond the base
-  ask already covered by the skeleton.
+  ask already covered by the skeleton — **enforced**: the `_SYSTEM` prompt tells the model not to
+  restate the base issue, and `draft()` strips an unfilled slot (and its blank line) to empty
+  rather than emitting a placeholder.
 - `{shipper_signoff}` — fixed, never varies per case (see below).
 
 Issue-specific slots (sourced from the thread or the WeChat message, never invented):

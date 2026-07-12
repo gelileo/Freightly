@@ -151,6 +151,12 @@ Pre-filling `{pro_clause}` matters for the send guardrail: an optional clause wi
 render empty, not as an `[[MISSING: pro_clause]]` placeholder — otherwise a legitimate no-PRO
 shipment would be blocked from sending.
 
+`{customer_request}` is an OPTIONAL *language* slot (the LLM's translation of the customer's extra
+ask). The `_SYSTEM` prompt instructs the model to leave it an empty string when the message adds
+nothing beyond the skeleton's base statement (avoiding a duplicated line), and `draft()` strips any
+unfilled `[[MISSING: customer_request]]` / `{customer_request}` (and its blank line) to empty
+afterward — so it renders empty rather than as a placeholder the guardrail would block.
+
 **The `warnings` fail-loud mechanism.** Redaction by string-replace has one failure mode:
 if the fabricated value the LLM reported in `filled_slots` isn't actually present
 verbatim in the draft `body` (e.g. it reformatted "99999999999" differently in the
