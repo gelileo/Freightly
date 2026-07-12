@@ -134,3 +134,20 @@ def test_onboard_customer_creates_org_user_membership_and_active_engagement():
     assert out["temp_password"]                       # generated + returned when none provided
     assert auth.login_password(c, "acme", out["temp_password"]) is not None
     assert auth.login_password(c, "acme", "wrong") is None
+
+
+def test_add_agent_operator_creates_agent_user_with_password():
+    c = connect(":memory:"); init_db(c)
+    repo.create_org(c, "Justnano", "agent", id="a1")
+    out = router.add_agent_operator(c, agent_org_id="a1", name="Jane Op",
+                                    email="jane@justnano.com")
+    assert out["login"] == "jane@justnano.com" and out["role"] == "operator"
+    assert out["temp_password"]                         # generated + returned
+    assert repo.is_member(c, "jane@justnano.com", "a1")
+    from app import auth
+    assert auth.login_password(c, "jane@justnano.com", out["temp_password"]) is not None
+    # an explicit password is used and not echoed back
+    out2 = router.add_agent_operator(c, agent_org_id="a1", name="Bob", email="bob@justnano.com",
+                                     password="set-by-admin", role="admin")
+    assert out2["temp_password"] is None and out2["role"] == "admin"
+    assert auth.login_password(c, "bob@justnano.com", "set-by-admin") is not None

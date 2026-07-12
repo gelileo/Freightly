@@ -49,7 +49,7 @@ only): create a **customer org**, a customer **web-login user** (their `X-User-I
 `{customer_org_id, engagement_id, login}`; a taken `login` → 409 (unique `auth_id`). This is the
 provisioning path for the web apps (there is no self-serve signup); the WeChat invite/bind path
 (below) is the alternative for Mini Program users. Surfaced in the agent console
-("Onboard customer"). See `concepts/app/deployment.md` for local seeding vs onboarding.
+("Onboard customer"). `router.add_agent_operator` + `POST /agents` similarly lets an agent-org member create another **agent operator/admin** (email+password, temp password if none given) in their own org — surfaced as the console's "Add operator" panel. See `concepts/app/deployment.md` for local seeding vs onboarding.
 
 ## Relationship-scoped access (`app/access.py`) — the security boundary
 

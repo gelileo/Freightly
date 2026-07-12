@@ -270,6 +270,27 @@ def test_login_bad_code_400():
     assert _d(c, "POST", "/auth/wechat/login", body={}).status == 400
 
 
+def test_add_agent_operator_flow():
+    c = _net()
+    r = _d(c, "POST", "/agents", user="op",
+           body={"name": "Jane Op", "email": "jane@justno.com"})
+    assert r.status == 201 and r.body["login"] == "jane@justno.com" and r.body["temp_password"]
+    # the new operator can log in and (as an agent-org member) list cases
+    login = _d(c, "POST", "/auth/login",
+               body={"email": "jane@justno.com", "password": r.body["temp_password"]})
+    assert login.status == 200
+    tok = login.body["session_token"]
+    assert _d(c, "GET", "/cases", headers={"Authorization": f"Bearer {tok}"}).status == 200
+    # duplicate email → 409; bad role → 400
+    assert _d(c, "POST", "/agents", user="op",
+              body={"name": "X", "email": "jane@justno.com"}).status == 409
+    assert _d(c, "POST", "/agents", user="op",
+              body={"name": "X", "email": "z@x.com", "role": "member"}).status == 400
+    # a customer-org member cannot add operators
+    assert _d(c, "POST", "/agents", user="uc",
+              body={"name": "X", "email": "q@x.com"}).status == 403
+
+
 def test_agent_password_login():
     c = _net()
     from app import auth

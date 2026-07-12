@@ -51,6 +51,19 @@ def onboard_customer(conn, *, agent_org_id, customer_name, login, password=None,
             "temp_password": None if password else pw}
 
 
+def add_agent_operator(conn, *, agent_org_id, name, email, password=None,
+                       role="operator") -> dict:
+    """Create another AGENT user (email+password login) as a member of `agent_org_id`. If no
+    `password` is given, a temp one is generated and returned as `temp_password` (else None).
+    A taken `email` raises sqlite3.IntegrityError → 409."""
+    from app import auth
+    user = repo.create_user(conn, name, "email", email, id=email)
+    repo.add_member(conn, user.id, agent_org_id, role)
+    pw = password or secrets.token_urlsafe(12)
+    auth.set_password(conn, user.id, pw)
+    return {"login": user.id, "role": role, "temp_password": None if password else pw}
+
+
 def open_customer_case(conn, *, engagement_id, broker_account_id, bol, pro, issue_type,
                        wechat_text, llm, fields=None) -> Case:
     row = conn.execute(

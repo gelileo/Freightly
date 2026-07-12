@@ -842,3 +842,12 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - Security review flagged secrets.token_urlsafe(6) (~48-bit) temp password → bumped to
   token_urlsafe(12) (~96-bit, 16 chars; still agent-relayable). Follow-ups noted: force reset on
   first login + rate-limit /auth/login at the gateway.
+
+## 2026-07-12 — In-app "Add operator" (agent creates teammate operators)
+- router.add_agent_operator + POST /agents (agent-org member only): create another agent
+  operator/admin (email+password) in the caller's org; optional password or generated temp
+  (returned); 409 on email collision; role ∈ {operator, admin}. Shared _resolve_agent_org helper
+  (refactored from onboarding). Agent console gains an "Add operator" panel.
+- Verified live (Playwright): op adds dana@justnanoinc.com → dana logs in via /auth/login.
+- Tests: test_router (add_agent_operator), test_api (flow, 409, bad-role 400, customer 403). 143 passed.
+- Docs: identity-model.md, api.md, agent-console.md, log.
