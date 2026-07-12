@@ -29,7 +29,7 @@ def test_make_transport_prefers_alibaba_then_fake(monkeypatch):
     from app.transport import AlibabaSmtpTransport
     _reset(monkeypatch, SMTP_PASSWORD="pw16")
     t = config.make_transport()
-    assert isinstance(t, AlibabaSmtpTransport) and t.address == "hs@justnanoinc.com"
+    assert isinstance(t, AlibabaSmtpTransport) and t.address == "agent@example.com"
     _reset(monkeypatch)  # nothing set
     assert isinstance(config.make_transport(), FakeTransport)
 
@@ -38,7 +38,7 @@ def test_make_imap_config_defaults(monkeypatch):
     _reset(monkeypatch, SMTP_PASSWORD="pw16")
     cfg = config.make_imap_config()
     assert cfg["host"] == "imap.qiye.aliyun.com" and cfg["port"] == 993
-    assert cfg["address"] == "hs@justnanoinc.com" and cfg["password"] == "pw16"
+    assert cfg["address"] == "agent@example.com" and cfg["password"] == "pw16"
 
 
 def test_load_env_reads_file_without_overriding_real_env(tmp_path, monkeypatch):

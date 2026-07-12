@@ -74,7 +74,7 @@ Append-only chronological log of significant changes to this project. Each entry
   sections. Ran RED (missing `reconsignment.md`) before authoring, GREEN after.
 - Matured `knowledge/concepts/drafting/template-system.md`: replaced the "To do
   (implementation)" section with the current state — the fixed `{shipper_signoff}` full
-  text (Hughson Huang's real Justnano signature, sourced from `cases/60114338678/thread.md`
+  text (the shipper's real signature, sourced from `cases/60114338678/thread.md`
   Turn 1), the final per-template slot vocabulary, and the "one template per issue slug,
   four sections" convention. `status: thin` → `mature`.
 - Files touched: `templates/pickup.md`, `templates/shipment-status.md`,

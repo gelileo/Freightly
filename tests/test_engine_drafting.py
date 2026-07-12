@@ -45,12 +45,14 @@ def test_broker_contact_uses_resolved_name_when_known():
     assert "Hi Laura," in r.draft_body
 
 
-def test_shipper_signoff_injected_deterministically():
-    # {shipper_signoff} is a fixed block, never left as [[MISSING]] regardless of the LLM
-    r = draft(DraftRequest(body="please pick up", sender="ltlwest@priority1.com",
+def test_shipper_signoff_injected_deterministically(monkeypatch):
+    # {shipper_signoff} is injected from the SHIPPER_SIGNOFF env var (PII kept out of git),
+    # never left as [[MISSING]] regardless of the LLM. \n escapes become real newlines.
+    monkeypatch.setenv("SHIPPER_SIGNOFF", "Best Regards\\n\\nJane Agent\\nDemo Freight Co")
+    r = draft(DraftRequest(body="please pick up", sender="broker@example.com",
                            subject="pickup --- 60114338678", facts={"BOL": "60114338678"},
                            source_text="BOL 60114338678"), FakeLlmClient())
-    assert "Hughson Huang" in r.draft_body and "Justnano INC" in r.draft_body
+    assert "Jane Agent" in r.draft_body and "Demo Freight Co" in r.draft_body
     assert "shipper_signoff" not in r.draft_body and "shipper_signoff" not in r.missing
 
 

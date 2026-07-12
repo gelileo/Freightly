@@ -95,23 +95,23 @@ Issue-specific slots (sourced from the thread or the WeChat message, never inven
 Any required slot missing from the thread renders as `[[MISSING: …]]` in the draft rather
 than being guessed — the reviewer fills it in before sending.
 
-## `{shipper_signoff}` (fixed, verbatim)
+## `{shipper_signoff}` (fixed, from config)
 
-Sourced from Justnano's real signature appearing in every `cases/<BOL>/thread.md` (e.g.
-`cases/60114338678/thread.md`, Turn 1). The skill inserts this exact block, unchanged,
-for every draft:
+The signoff is the shipper's real signature (name / title / company / address / phones / email) —
+**PII, so it is NOT stored in the repo**. It comes from the `SHIPPER_SIGNOFF` env var (kept in
+`.env`, out of git; `\n`-escaped), resolved by `engine.knowledge.shipper_signoff()` and injected
+deterministically into every draft. When unset (tests/CI) a neutral placeholder is used:
 
 ```
 Best Regards
 
-Hughson Huang
-President
+[Shipper Name]
+[Title]
 
-Justnano INC
-Add: 14425 Yorba Ave, Chino CA 91710
-Mobile: +1 (626)-688-8030
-Office: +1 (626)-600-4211
-hs@justnanoinc.com | www.justnanoinc.com
+[Company]
+[Address]
+[Phone]
+[shipper email] | [website]
 ```
 
 ## Drafting contract (used by the skill)

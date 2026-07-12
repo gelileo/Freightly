@@ -47,7 +47,7 @@ def make_transport():
     if password:
         from app.transport import AlibabaSmtpTransport
         return AlibabaSmtpTransport(
-            address=os.environ.get("SMTP_ADDRESS", "hs@justnanoinc.com"), password=password,
+            address=os.environ.get("SMTP_ADDRESS", "agent@example.com"), password=password,
             host=os.environ.get("SMTP_HOST", "smtp.qiye.aliyun.com"),
             port=int(os.environ.get("SMTP_PORT", "465")))
     token_file = os.environ.get("GMAIL_TOKEN_FILE")
@@ -66,7 +66,7 @@ def make_imap_config():
     return {
         "host": os.environ.get("IMAP_HOST", "imap.qiye.aliyun.com"),
         "port": int(os.environ.get("IMAP_PORT", "993")),
-        "address": os.environ.get("SMTP_ADDRESS", "hs@justnanoinc.com"),
+        "address": os.environ.get("SMTP_ADDRESS", "agent@example.com"),
         "password": os.environ.get("SMTP_PASSWORD"),
     }
 

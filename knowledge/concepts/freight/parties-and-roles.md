@@ -19,7 +19,7 @@ Customer ──WeChat (Chinese)──▶ Shipper (Justnano) ──email (English
 | Party | Role | In the sample thread |
 | --- | --- | --- |
 | **Customer** | End client who raises the issue; not on the email thread | (via WeChat; not shown in `.eml`) |
-| **Shipper / "middle man"** | Justnano INC — handles all broker communication | Hughson Huang, President, `hs@justnanoinc.com` |
+| **Shipper / "middle man"** | the shipper (agent) — handles all broker communication | shipper operator (President), configured mailbox |
 | **Broker** | Priority-1, Inc. — intermediary between shipper and carrier | Will Jerry (`William.Jerry@priority1.com`); `ltlwest@priority1.com` (cc) |
 | **Broker (sales)** | Priority-1 Account Executives who prospect for new/repeat business — never move an actual shipment; their mail is `triage == skip` (promo) | Ashton Johnson, Account Executive – Digital (`Ashton.Johnson@priority1.com`); real example: `LTL-mail-2/10% Off Freight Promo LTL, Truckload And Expedited.eml` ("we have a promotion … 10% discount for all new shippers") |
 | **Broker (statements, automated)** | Priority-1's automated billing mailbox — sends monthly statements / invoice notifications, never a human reply; its mail is `triage == skip` | `NoReply@Priority1.com` (From header: "Priority1 Statement") |
@@ -83,7 +83,7 @@ Verified against the 71-file `LTL-mail/` corpus and generated `cases/<BOL>/threa
   individual **LTL Support Analysts – West** — observed: Isabella Guerrero, Laura Posada,
   Lauren Moore, Shyra Shannel Dela Cruz, plus named reps like Jalen Turner. When drafting,
   address the human name from the latest reply's signature; fall back to "team".
-- The shipper side is consistently **Hughson Huang / Justnano INC** (`hs@justnanoinc.com`;
+- The shipper side is consistently the shipper operator / shipper company (configured mailbox;
   booking login `huang@justnanoinc.com`).
 - **One carrier named so far:** AAA Cooper (code SCM); other carriers (e.g. ABF, seen as
   "Relayed to ABF") appear only as broker mentions, never as direct correspondents — the

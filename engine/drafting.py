@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from scripts.triage import triage
 from scripts.corpus_report import classify_issue
-from engine.knowledge import SHIPPER_SIGNOFF, TEMPLATES_DIR, load_template
+from engine.knowledge import shipper_signoff, TEMPLATES_DIR, load_template
 from engine.llm import LlmClient
 from engine.validate import validate_draft
 
@@ -82,8 +82,9 @@ def draft(req: DraftRequest, llm: LlmClient) -> DraftResult:
                        source_text=req.source_text, target_lang=req.target_lang)
     v = validate_draft(raw, source_text=req.source_text)
     # Deterministically inject the fixed shipper signoff — never trust the LLM for it.
-    body = v.body.replace("[[MISSING: shipper_signoff]]", SHIPPER_SIGNOFF) \
-                 .replace("{shipper_signoff}", SHIPPER_SIGNOFF)
+    _signoff = shipper_signoff()
+    body = v.body.replace("[[MISSING: shipper_signoff]]", _signoff) \
+                 .replace("{shipper_signoff}", _signoff)
     # customer_request is an OPTIONAL language slot (not a fact): if the LLM left it unfilled,
     # render it empty and drop its now-blank line, rather than leaking a [[MISSING]] placeholder
     # (which the send guardrail would block) or a duplicated base line.

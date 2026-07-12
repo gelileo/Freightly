@@ -2,23 +2,28 @@
 per-agent Knowledge service comes in a later plan."""
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 
-# Fixed signoff injected deterministically (never left to the LLM). Single-agent default for
-# now; becomes a per-agent Knowledge-service override in the multi-tenant build.
-SHIPPER_SIGNOFF = """Best Regards
+# The signoff is PII (real name / address / phones / email), so it is NOT hardcoded here — it
+# comes from the SHIPPER_SIGNOFF env var (kept in .env, out of git; newlines as \n). A neutral
+# placeholder is used when unset (tests/CI). Becomes a per-agent Knowledge-service override in the
+# multi-tenant build.
+_DEFAULT_SIGNOFF = ("Best Regards\n\n[Shipper Name]\n[Title]\n\n[Company]\n[Address]\n"
+                    "[Phone]\n[shipper email] | [website]")
 
-Hughson Huang
-President
 
-Justnano INC
-Add: 14425 Yorba Ave, Chino CA 91710
-Mobile: +1 (626)-688-8030
-Office: +1 (626)-600-4211
-hs@justnanoinc.com | www.justnanoinc.com"""
+def shipper_signoff() -> str:
+    """Fixed signoff block injected deterministically (never left to the LLM)."""
+    raw = os.environ.get("SHIPPER_SIGNOFF")
+    return raw.replace("\\n", "\n") if raw else _DEFAULT_SIGNOFF
+
+
+# Back-compat constant = the neutral default; runtime callers should use shipper_signoff().
+SHIPPER_SIGNOFF = _DEFAULT_SIGNOFF
 
 
 def load_template(slug: str) -> str:

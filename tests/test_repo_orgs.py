@@ -12,7 +12,7 @@ def test_create_and_membership():
     c = _c()
     org = repo.create_org(c, "Justnano", "agent", id="ag1")
     assert org.type == "agent"
-    repo.create_user(c, "Hughson", "email", "hs@justnanoinc.com", id="u1")
+    repo.create_user(c, "Agent One", "email", "agent1@example.com", id="u1")
     repo.add_member(c, "u1", "ag1", "admin")
     assert repo.is_member(c, "u1", "ag1") is True
     assert repo.is_member(c, "u1", "nope") is False
