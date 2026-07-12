@@ -111,3 +111,21 @@ def test_broker_reply_relayed_to_customer_as_zh():
     # approving the app-channel message posts it to the customer
     cases.approve_message(c, m["id"], "op")
     assert cases.get_case(c, "pc1").status == "POSTED_TO_CUSTOMER"
+
+
+def test_onboard_customer_creates_org_user_membership_and_active_engagement():
+    c = connect(":memory:"); init_db(c)
+    repo.create_org(c, "Justnano", "agent", id="a1")
+    out = router.onboard_customer(c, agent_org_id="a1", customer_name="Acme Shipping",
+                                  login="acme")
+    assert out["login"] == "acme"
+    # the new customer user exists and is a member of the new customer org
+    assert repo.is_member(c, "acme", out["customer_org_id"])
+    # the engagement is active between the agent and the new customer org
+    row = c.execute("SELECT status, agent_org_id, customer_org_id FROM engagements WHERE id=?",
+                    (out["engagement_id"],)).fetchone()
+    assert row["status"] == "active" and row["agent_org_id"] == "a1"
+    assert row["customer_org_id"] == out["customer_org_id"]
+    # the org is a customer org
+    assert c.execute("SELECT type FROM orgs WHERE id=?",
+                     (out["customer_org_id"],)).fetchone()["type"] == "customer"

@@ -47,11 +47,24 @@
 </header>
 
 <div class="layout">
-  <div class="card">
-    <div class="row" style="justify-content:space-between">
-      <strong>案件 / Cases</strong><button onclick="loadCases()">刷新 / Refresh</button>
+  <div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <strong>案件 / Cases</strong><button onclick="loadCases()">刷新 / Refresh</button>
+      </div>
+      <div id="cases"></div>
     </div>
-    <div id="cases"></div>
+    <div class="card" style="margin-top:12px">
+      <strong>新客户 / Onboard customer</strong>
+      <div class="muted" style="margin:4px 0">创建客户机构 + 启用合作 + 网页登录账号</div>
+      <input id="onbName" placeholder="客户名称 / Customer name"
+             style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
+      <input id="onbLogin" placeholder="登录 ID / login (X-User-Id)"
+             style="width:100%;margin:4px 0;padding:5px 8px;border-radius:6px;border:1px solid #cbd5e1">
+      <button class="primary" onclick="onboardCustomer()">创建 / Create</button>
+      <div id="onbErr" class="err"></div>
+      <div id="onbOk" class="muted"></div>
+    </div>
   </div>
   <div class="card">
     <div id="detail"><p class="muted">选择一个案件。 Select a case.</p></div>
@@ -64,6 +77,18 @@ let UID = localStorage.getItem("uid") || "";
 let CURRENT = null;
 
 function headers() { return UID ? { "X-User-Id": UID } : {}; }
+
+async function onboardCustomer() {
+  const err = document.getElementById("onbErr"), ok = document.getElementById("onbOk");
+  err.textContent = ""; ok.textContent = "";
+  const customer_name = document.getElementById("onbName").value.trim();
+  const login = document.getElementById("onbLogin").value.trim();
+  if (!customer_name || !login) { err.textContent = "请填写名称与登录 ID / name + login required"; return; }
+  const { status, data } = await api("POST", "/onboard-customer", { customer_name, login });
+  if (status !== 201) { err.textContent = `${status} ${data.error || "失败 / failed"}`; return; }
+  ok.textContent = `已创建 / created — 客户在 /customer 用登录 ID “${data.login}” 登录`;
+  document.getElementById("onbName").value = ""; document.getElementById("onbLogin").value = "";
+}
 
 async function api(method, path, body) {
   const opt = { method, headers: { ...headers() } };

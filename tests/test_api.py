@@ -270,6 +270,38 @@ def test_login_bad_code_400():
     assert _d(c, "POST", "/auth/wechat/login", body={}).status == 400
 
 
+def test_onboard_customer_flow():
+    c = _net()   # 'op' is an operator in agent org 'agent'
+    r = _d(c, "POST", "/onboard-customer", user="op",
+           body={"customer_name": "Beta Freight", "login": "beta"})
+    assert r.status == 201
+    assert r.body["login"] == "beta" and r.body["customer_org_id"] and r.body["engagement_id"]
+    # the onboarded customer can now log in (X-User-Id 'beta') and see their active engagement
+    engs = _d(c, "GET", "/engagements", user="beta").body["engagements"]
+    assert len(engs) == 1 and engs[0]["agent_name"] == "Agent"
+    # and open a case through it
+    oc = _d(c, "POST", "/cases", user="beta", body={
+        "engagement_id": engs[0]["id"], "broker_account_id": engs[0]["broker_accounts"][0]["id"],
+        "bol": "1", "issue_type": "pickup", "wechat_text": "x"})
+    assert oc.status == 201
+
+
+def test_onboard_customer_login_collision_409():
+    c = _net()
+    b = {"customer_name": "X", "login": "dup"}
+    assert _d(c, "POST", "/onboard-customer", user="op", body=b).status == 201
+    assert _d(c, "POST", "/onboard-customer", user="op", body=b).status == 409
+
+
+def test_onboard_customer_agent_only():
+    c = _net()
+    # a customer-org member cannot onboard
+    assert _d(c, "POST", "/onboard-customer", user="uc",
+              body={"customer_name": "X", "login": "y"}).status == 403
+    # missing fields → 400
+    assert _d(c, "POST", "/onboard-customer", user="op", body={"customer_name": "X"}).status == 400
+
+
 def test_headers_case_insensitive_for_http2():
     # HTTP/2 (Vercel) delivers header names lowercased; auth + webhook lookups must still match
     c = _net()
