@@ -43,7 +43,9 @@ def onboard_customer(conn, *, agent_org_id, customer_name, login, password=None,
     repo.add_member(conn, user.id, org.id, "member")
     eng = repo.create_engagement(conn, org.id, agent_org_id)
     repo.approve_engagement(conn, eng.id)
-    pw = password or secrets.token_urlsafe(6)
+    # ~96 bits of entropy for the auto-generated temp password (still short enough for the agent
+    # to relay). Follow-ups: force a reset on first login + rate-limit /auth/login (gateway).
+    pw = password or secrets.token_urlsafe(12)
     auth.set_password(conn, user.id, pw)
     return {"customer_org_id": org.id, "engagement_id": eng.id, "login": user.id,
             "temp_password": None if password else pw}

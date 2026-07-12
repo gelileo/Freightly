@@ -837,3 +837,8 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - Verified live (Playwright): bad password rejected, correct → 'as Acme Customer' via Bearer.
 - Tests: test_router (onboard sets working password), existing api tests green. 141 passed.
 - Docs: identity-model.md, customer-web.md, api.md, log.
+
+## 2026-07-12 — Harden auto-generated onboarding temp password (commit review)
+- Security review flagged secrets.token_urlsafe(6) (~48-bit) temp password → bumped to
+  token_urlsafe(12) (~96-bit, 16 chars; still agent-relayable). Follow-ups noted: force reset on
+  first login + rate-limit /auth/login at the gateway.
