@@ -96,7 +96,10 @@ user and (on success) mints the **same opaque session** as WeChat (`_mint_sessio
 returning `(token, user)`. Endpoint `POST /auth/login` → `{session_token, user}` (401 on bad
 creds). The **agent console** logs in with email+password and then sends `Authorization: Bearer
 <token>`. Passwords are set out-of-band (no self-serve): `scripts/set_agent_password.py <email>
-<pw>`; `seed_demo.py` sets the demo operator's. The customer web app still uses `X-User-Id` for now.
+<pw>`; `seed_demo.py` sets the demo accounts'. **Both the agent console AND the customer web app now
+log in with email+password → Bearer session** — the customer's password is set at onboarding
+(`onboard_customer` accepts a `password` or returns a generated `temp_password` for the agent to
+hand off). `X-User-Id` remains only for tests / trusted internal calls.
 
 ## Not in this slice
 

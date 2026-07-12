@@ -129,3 +129,8 @@ def test_onboard_customer_creates_org_user_membership_and_active_engagement():
     # the org is a customer org
     assert c.execute("SELECT type FROM orgs WHERE id=?",
                      (out["customer_org_id"],)).fetchone()["type"] == "customer"
+    # onboarding sets a login password so the customer can log in via /auth/login
+    from app import auth
+    assert out["temp_password"]                       # generated + returned when none provided
+    assert auth.login_password(c, "acme", out["temp_password"]) is not None
+    assert auth.login_password(c, "acme", "wrong") is None
