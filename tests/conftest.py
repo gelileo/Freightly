@@ -10,6 +10,13 @@ CORPUS = ROOT / "LTL-mail"                 # full raw corpus (dev-only, not in g
 FIX = ROOT / "tests" / "fixtures"          # committed ground-truth emails
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_env(monkeypatch):
+    # keep tests independent of a real .env leaking in via config.load_env(): a test that cares
+    # about the signoff sets SHIPPER_SIGNOFF itself; otherwise it uses the neutral default.
+    monkeypatch.delenv("SHIPPER_SIGNOFF", raising=False)
+
+
 @pytest.fixture
 def corpus_dir() -> Path:
     if not CORPUS.exists():
