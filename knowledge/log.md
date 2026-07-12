@@ -797,3 +797,13 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - New article concepts/app/deployment.md (+ .zh) with topology + operator runbook; api.md +
   index.md updated. Prod (GoDaddy DNS) + WeChat MP deferred. Deploy itself is the operator's step
   (Turso + Vercel accounts) — I can't run it from here.
+
+## 2026-07-11 — Local dev harness + demo seed (no self-serve signup)
+- scripts/serve_local.py: runs app.server against a persistent sqlite file (HS_DB, default hs.db),
+  serving / (agent), /customer, and /api; FAKE services by default (USE_REAL_SERVICES=1 for real).
+- scripts/seed_demo.py: idempotent demo graph — agent org 'Justnano' (user 'op'), customer org
+  'Acme Shipping' (user 'uc'), active engagement, broker account. Log in by typing X-User-Id.
+- app/server.py now strips a leading /api (frontends use API=/api same as Vercel), so local +
+  serverless routing match. Clarifies: there is NO self-serve user creation — identity is
+  provisioned (X-User-Id upstream / WeChat invite-bind); new users via seed/onboarding, not the UI.
+- Docs: deployment.md (+ .zh) "Local development". 134 passed.

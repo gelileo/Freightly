@@ -31,7 +31,12 @@ def make_handler(conn_factory, llm, transport=None, webhook_secret=None, web_roo
                 body = json.loads(raw) if raw else {}
             except json.JSONDecodeError:
                 return self._write(400, {"error": "invalid JSON body"})
-            req = Request(method=method, path=self.path,
+            path = self.path
+            if path.startswith("/api/"):      # frontends call /api/* (same as on Vercel); strip it
+                path = path[len("/api"):]
+            elif path == "/api":
+                path = "/"
+            req = Request(method=method, path=path,
                           user_id=self.headers.get("X-User-Id"),
                           headers={k: v for k, v in self.headers.items()}, body=body)
             conn = conn_factory()

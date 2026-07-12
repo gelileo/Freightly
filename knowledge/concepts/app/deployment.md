@@ -44,6 +44,25 @@ WeChat Mini Program are deferred. Spec:
   `llm`/`transport`/`wechat` are built once per warm instance. Turso is the shared store for the
   API function and the cron poller.
 
+## Local development (no Vercel/Turso needed)
+
+There is **no self-serve signup** — identity is provisioned (the web apps trust an upstream
+`X-User-Id`; WeChat users onboard via invite/bind). To run and use the apps locally:
+
+```bash
+python3 scripts/seed_demo.py      # creates demo accounts in ./hs.db (idempotent)
+python3 scripts/serve_local.py    # serves / (agent) + /customer + /api on http://127.0.0.1:8000
+```
+
+- `serve_local.py` runs `app.server` against a **persistent sqlite file** (`HS_DB`, default
+  `hs.db`), serving the static frontends and the API. Frontends call `/api/*`; the server strips
+  the prefix (same routing as Vercel). Defaults to **FAKE** llm/transport/wechat (no external
+  calls, approving an email does NOT send); `USE_REAL_SERVICES=1` wires the real ones from `.env`.
+- `seed_demo.py` creates an agent org (`Justnano`, operator **`op`**), a customer org
+  (`Acme Shipping`, member **`uc`**), an active engagement, and a broker account. **Log in by
+  typing the `X-User-Id`:** agent console → `op`, customer app → `uc`. New customers/orgs are added
+  by extending the seed (or the future admin/onboarding surface), not from the app UI.
+
 ## DB backend (`app/db.py`)
 
 `connect()` returns a **libSQL** connection when `LIBSQL_URL` is set (Vercel), else stdlib
