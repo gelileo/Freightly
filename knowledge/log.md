@@ -868,3 +868,22 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - Test: spoofed X-User-Id → 401 when not trusted; valid Bearer → 200. Server/console smoke tests
  opt in. 144 passed.
 - Docs: api.md (auth boundary now enforced), deployment.md, log.
+
+## [2026-07-12] compile | harden manage.py against the silent-orphan/zombie trap
+
+- Symptom: `/customer` returned `{"detail":"Not Found"}` (the `dispatch()` 404 shape, not
+ `_serve_page`'s `{"error":"page not found"}`). Root cause: `manage.py` "Start ALL" spawned web
+ onto an already-occupied `:8000`; the child crashed on bind (`Errno 48`, logged only to
+ `.run/web.log`) while an **orphaned older server** — predating the `/customer` route — kept
+ answering. The old alive-check (`os.kill(pid,0)`) saw the crashed child as a **zombie=alive** and
+ falsely reported success.
+- Fix (`manage.py`): (1) pre-flight port check — `start()` refuses to launch web onto an occupied
+ `PORT` with a `kill …` hint; (2) startup confirmation via `proc.poll()` (reaps + returns exit
+ code) plus a readiness probe that waits until web is truly listening before claiming success;
+ (3) `_alive()` is now zombie-aware (`ps -o stat=` `Z`) so status is honest; (4) `show_status()`
+ runs at the top of every menu render and flags the orphan condition (web untracked but `PORT`
+ held); the standalone "Status" menu item became "Refresh status".
+- Verified: helper unit smoke test (port in-use/owner, zombie detection), start-refusal on held
+ port, "already running" path, and the status orphan flag. Seeded `hs.db` (was empty → login
+ would have failed). No taxonomy/template/parsing/drafting behaviour changed.
+- Docs: deployment.md (+ .zh) local-dev section, log.

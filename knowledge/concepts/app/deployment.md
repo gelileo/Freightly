@@ -50,11 +50,20 @@ There is **no self-serve signup** — identity is provisioned (the web apps trus
 `X-User-Id`; WeChat users onboard via invite/bind). To run and use the apps locally:
 
 ```bash
-python3 manage.py                 # interactive menu: start/stop apps, seed/reset, status (recommended)
+python3 manage.py                 # interactive menu: start/stop apps, seed/reset, mode toggle (recommended)
 # …or directly:
 python3 scripts/seed_demo.py      # creates demo accounts in ./hs.db (idempotent)
 python3 scripts/serve_local.py    # serves / (agent) + /customer + /api on http://127.0.0.1:8000
 ```
+
+`manage.py` **shows a status block (process state + URLs + DB counts) at the top of every menu
+render**, then waits for a selection. Start is hardened against the silent-orphan trap: it does a
+**pre-flight port check** and refuses to launch web onto an occupied `PORT` (with a `kill …` hint),
+and it confirms the child is **actually listening** via `proc.poll()` + a readiness probe rather
+than `os.kill(pid,0)` — which sees an un-reaped **zombie** child as "alive" and would otherwise
+report success over a crashed process while a stale server keeps answering old routes. The status
+block flags the same orphan condition (web untracked but `PORT` held). `_alive()` is zombie-aware
+(`ps STAT` `Z`) so status is honest too.
 
 - `serve_local.py` runs `app.server` against a **persistent sqlite file** (`HS_DB`, default
   `hs.db`), serving the static frontends and the API. Frontends call `/api/*`; the server strips

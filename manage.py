@@ -12,6 +12,7 @@ and a web-services mode toggle (fake = no external calls; real = Gemini + Alibab
 """
 import os
 import signal
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -54,16 +55,28 @@ def _read_pid(name):
         return None
 
 
+def _is_zombie(pid):
+    """A child we spawned but never wait()ed on becomes a zombie (defunct) when it crashes.
+    os.kill(pid, 0) still SUCCEEDS for a zombie — that false 'alive' is exactly what hid the
+    port-conflict crash. ps STAT starting with 'Z' is the portable (macOS/Linux) zombie tell."""
+    try:
+        out = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)],
+                             capture_output=True, text=True, timeout=2)
+        return out.stdout.strip().startswith("Z")
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return False
+
+
 def _alive(pid):
     if not pid:
         return False
     try:
         os.kill(pid, 0)
-        return True
     except ProcessLookupError:
         return False
     except PermissionError:
         return True      # exists but owned by another user → still alive
+    return not _is_zombie(pid)   # exists, but a defunct child is not really running
 
 
 def _running(name):
@@ -73,6 +86,23 @@ def _running(name):
     if _pidfile(name).exists():
         _pidfile(name).unlink()      # stale pidfile
     return None
+
+
+def _port_in_use(port, host="127.0.0.1"):
+    """True if something is actively listening on host:port (a successful connect proves it)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.3)
+        return s.connect_ex((host, port)) == 0
+
+
+def _port_owner_pids(port):
+    """Best-effort: PIDs listening on the port (for a helpful 'free it' hint). [] if lsof absent."""
+    try:
+        out = subprocess.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+                             capture_output=True, text=True, timeout=3)
+        return sorted({int(x) for x in out.stdout.split()})
+    except (FileNotFoundError, subprocess.SubprocessError, ValueError):
+        return []
 
 
 def _build(name):
@@ -97,6 +127,17 @@ def start(name):
     if _running(name):
         print(f"  {name} already running (pid {_read_pid(name)}).")
         return
+    # Pre-flight: refuse to spawn web into an occupied port. Otherwise the child crashes on
+    # bind (Errno 48) and — because a zombie fools os.kill — we'd falsely report success while
+    # a stale orphan keeps answering with old routing.
+    if name == "web" and _port_in_use(PORT):
+        owners = _port_owner_pids(PORT)
+        who = f" by pid {', '.join(map(str, owners))}" if owners else " by another process"
+        print(f"  ✗ web NOT started — port {PORT} is already in use{who}.")
+        print(f"    Likely an orphaned server. Free it, then Start again:")
+        print(f"      kill {' '.join(map(str, owners))}" if owners
+              else f"      lsof -ti tcp:{PORT} | xargs kill")
+        return
     if name == "poller" and not VENV_PY.exists():
         print("  ! poller needs the .venv (google-genai) — create it first (see docs/LOCAL_E2E_GUIDE.md).")
         return
@@ -105,11 +146,29 @@ def start(name):
     proc = subprocess.Popen([py, *args], cwd=str(ROOT), env={**os.environ, **env},
                             stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     _pidfile(name).write_text(str(proc.pid))
-    time.sleep(1.2)
-    if not _alive(proc.pid):
-        print(f"  ✗ {name} exited immediately — last log lines:")
+    # Confirm it actually came up. proc.poll() reaps the child and returns its exit code the
+    # instant it dies (unlike os.kill(pid,0), which sees the un-reaped zombie as alive). For web
+    # we additionally wait until it is truly listening before claiming success.
+    ready = False
+    steps = 20 if name == "web" else 8      # web: up to ~4s to bind; poller: ~1.6s survival grace
+    for _ in range(steps):
+        time.sleep(0.2)
+        if proc.poll() is not None:
+            print(f"  ✗ {name} exited immediately (exit code {proc.returncode}) — last log lines:")
+            _tail(name)
+            _pidfile(name).unlink(missing_ok=True)
+            return
+        if name == "web":
+            if _port_in_use(PORT):
+                ready = True
+                break
+        else:
+            ready = True                    # poller has no port; surviving the grace window is enough
+            break
+    if name == "web" and not ready:
+        print(f"  ⚠ web process is alive (pid {proc.pid}) but not serving on :{PORT} after ~4s — "
+              f"check the log:")
         _tail(name)
-        _pidfile(name).unlink(missing_ok=True)
         return
     if name == "web":
         print(f"  ✓ web started (pid {proc.pid}, {MODE} mode)  →  http://127.0.0.1:{PORT}/  "
@@ -180,6 +239,15 @@ def show_status():
         print(f"  {label:<34} {state}")
         if pid and name == "web":
             print(f"      → http://127.0.0.1:{PORT}/  |  /customer")
+        # Orphan detector: web not tracked-running, yet the port is taken → a stale server is
+        # answering (this is the trap that served old /customer routing). Flag it loudly.
+        if not pid and name == "web" and _port_in_use(PORT):
+            owners = _port_owner_pids(PORT)
+            who = f"pid {', '.join(map(str, owners))}" if owners else "an untracked process"
+            print(f"      ⚠ but port {PORT} is HELD by {who} (orphaned server?). "
+                  f"Start will refuse until freed:")
+            print(f"          kill {' '.join(map(str, owners))}" if owners
+                  else f"          lsof -ti tcp:{PORT} | xargs kill")
     counts = _db_counts()
     print("  ── data ──")
     if counts is None:
@@ -238,12 +306,13 @@ def main():
     global MODE
     print(__doc__.strip().splitlines()[0])
     while True:
-        print("\n=== HS app manager ===")
+        show_status()                         # always show current state before the menu
+        print("=== HS app manager ===")
         print("  1) Start an app…")
         print("  2) Stop an app…")
         print("  3) Start ALL")
         print("  4) Stop ALL")
-        print("  5) Status")
+        print("  5) Refresh status")
         print("  6) Seed / reset demo data…")
         print(f"  7) Toggle web mode (currently: {MODE})")
         print("  q) Quit")
@@ -267,7 +336,7 @@ def main():
             for s in SERVICES:
                 stop(s)
         elif ch == "5":
-            show_status()
+            pass                              # loop re-renders the status block above
         elif ch == "6":
             seed_menu()
         elif ch == "7":
