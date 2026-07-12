@@ -38,6 +38,8 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | [transport-and-config](concepts/app/transport-and-config.md) | MailTransport port + Fake/Gmail, send-on-approval + thread continuity, Gemini/Gmail config factory (Slice 5) | 2026-07-10 |
 | [agent-console](concepts/app/agent-console.md) | Dependency-free HTML+JS agent console (thin API client), served by stdlib server (Slice 6) | 2026-07-11 |
 | [customer-web](concepts/app/customer-web.md) | Customer web + schema-driven intake form engine (issue-types/engagements endpoints, dynamic forms) (Slice 7) | 2026-07-11 |
+| [deployment](concepts/app/deployment.md) | Vercel serverless (static frontends + `dispatch()` function + Vercel Cron) + Turso/libSQL DB; `app/db` dual backend; operator runbook. Prod (GoDaddy DNS) deferred | 2026-07-11 |
+| [deployment.zh](concepts/app/deployment.zh.md) | 中文版:Vercel serverless + Turso/libSQL 部署、`app/db` 双后端、操作手册 | 2026-07-11 |
 | [wechat-miniprogram](concepts/app/wechat-miniprogram.md) | WeChat Mini Program as the customer frontend — dual-thread architecture, ecosystem/networking constraints, `wx.login`→`code2Session`→openid/unionid auth. **Backend auth adapter built** (`app/wechat.py`, `app/auth.py`); Mini Program views still deferred | 2026-07-11 |
 | [wechat-miniprogram.zh](concepts/app/wechat-miniprogram.zh.md) | 中文版:微信小程序作为客户前端——双线程架构、生态/网络约束、`wx.login`→`code2Session`→openid/unionid 鉴权。**后端鉴权适配器已构建**;视图仍暂缓 | 2026-07-11 |
 
@@ -52,6 +54,7 @@ Grouped by subject area. Each article is a standalone reference. Connections at 
 | `miniprogram/**` (native WeChat Mini Program: 5 pages + `utils/api.js`), `prototype.html` (browser preview) | wechat-miniprogram.md → "Views (built)" |
 | `app/transport.py` (MailTransport, Fake/Gmail/**Alibaba** SMTP), `app/config.py` (make_llm/make_transport/make_imap_config) | transport-and-config.md |
 | `app/inbound.py` (IMAP poller: `poll_once`, `ImapClient`, `run_poller`), `imap_state` table | transport-and-config.md → "Inbound poller" |
+| `app/db.py` (`_LibsqlConnection` libSQL backend), `api/index.py`, `api/poll.py`, `vercel.json`, `scripts/export_schema.py` | deployment.md |
 | `web/agent/index.html` (agent console), `app/server.py` static-serve route | agent-console.md |
 | `web/customer/index.html` (customer app), `app/forms.py` (form engine) | customer-web.md |
 | `scripts/parse_eml.py` | eml-parsing.md |

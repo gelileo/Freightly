@@ -71,6 +71,10 @@ stack leak) rather than a dead request thread.
 
 ## Not here / next
 
+**Serverless (Vercel):** `dispatch()` is exposed as a Vercel Python function (`api/index.py`),
+which strips the `/api` prefix the frontends use and calls `dispatch()` unchanged; DB is
+Turso/libSQL. See `concepts/app/deployment.md`.
+
 WeChat login is now **built** (session tokens + invite/bind; see
 `concepts/app/wechat-miniprogram.md`). Still at the gateway / a later slice: OAuth for other
 channels, rate limiting, TLS termination, pagination, and the `X-User-Id` production lock-down.

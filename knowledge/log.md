@@ -783,3 +783,17 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
   (optional language slot, not a fact). Verified live: no-PRO pickup draft now states the base
   issue exactly once. Test: test_customer_request_optional_renders_empty_no_placeholder.
 - Docs: drafting-engine.md, template-system.md.
+
+## 2026-07-11 — Vercel serverless deployment scaffolding (staging) + Turso libSQL backend
+- `app/db.py`: dual backend — stdlib sqlite3 (local/tests) or libSQL/Turso (`_LibsqlConnection`
+  over libsql-client) when `LIBSQL_URL` set. Stateful sqlite3-style adapter (execute/commit/
+  rollback/executescript, dict rows, IntegrityError normalization); repo/cases/auth/inbound
+  unchanged. Validated via scripts/verify_libsql.py (file: backend) — ALL PASS.
+- `api/index.py` (dispatch as Vercel Python function, strips /api), `api/poll.py` (Vercel Cron →
+  poll_once), `vercel.json` (static frontends + /api routing + cron), `requirements.txt`
+  (google-genai, libsql-client), `scripts/export_schema.py` + `schema.sql`.
+- Frontends: API base → `/api` (same origin, no CORS).
+- Tests: tests/test_vercel_api.py (_strip_api, vercel.json routes, schema.sql sync). 133 passed.
+- New article concepts/app/deployment.md (+ .zh) with topology + operator runbook; api.md +
+  index.md updated. Prod (GoDaddy DNS) + WeChat MP deferred. Deploy itself is the operator's step
+  (Turso + Vercel accounts) — I can't run it from here.

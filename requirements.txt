@@ -1,0 +1,3 @@
+# Vercel serverless runtime deps (local tests use stdlib fakes and don't need these).
+google-genai
+libsql-client

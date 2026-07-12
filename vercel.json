@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/", "destination": "/web/agent/index.html" },
+    { "source": "/customer", "destination": "/web/customer/index.html" },
+    { "source": "/api/poll", "destination": "/api/poll" },
+    { "source": "/api/(.*)", "destination": "/api/index" }
+  ],
+  "crons": [
+    { "path": "/api/poll", "schedule": "*/5 * * * *" }
+  ]
+}

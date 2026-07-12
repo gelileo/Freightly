@@ -1,0 +1,24 @@
+# Only ship what the serverless runtime needs: api/, app/, engine/, templates/, web/,
+# vercel.json, requirements.txt. Everything below is real data / docs / tooling and must NOT
+# be served publicly by Vercel's static file host.
+LTL-mail/
+LTL-mail-2/
+cases/
+docs/
+knowledge/
+tests/
+scripts/
+.superpowers/
+.claude/
+miniprogram/
+prototype.html
+schema.sql
+*.eml
+*.db
+*.sqlite
+.venv/
+__pycache__/
+**/__pycache__/
+.git/
+.vscode/
+.playwright-mcp/
