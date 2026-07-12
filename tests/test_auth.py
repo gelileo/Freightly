@@ -114,3 +114,23 @@ def test_bind_rejects_bad_expired_and_consumed():
     _, bob, _ = auth.login_wechat(c, WX, "bob", now=NOW)
     with pytest.raises(ValueError):
         auth.bind_via_invite(c, user_id=bob.id, code=code, now=NOW)               # already used
+
+
+def test_password_hash_and_verify():
+    h = auth.hash_password("s3cret")
+    assert auth.verify_password("s3cret", h)
+    assert not auth.verify_password("wrong", h)
+    assert h != auth.hash_password("s3cret")   # random salt each time
+
+
+def test_login_password_mints_session():
+    c = _db()
+    repo.create_org(c, "Ag", "agent", id="ag")
+    repo.create_user(c, "Op", "email", "op@x.com", id="op"); repo.add_member(c, "op", "ag", "operator")
+    auth.set_password(c, "op", "pw12345")
+    assert auth.login_password(c, "op@x.com", "bad") is None          # wrong password
+    token, user = auth.login_password(c, "op@x.com", "pw12345")
+    assert user.id == "op" and auth.resolve_session(c, token) == "op"
+    assert auth.login_password(c, "nope@x.com", "pw12345") is None    # unknown email
+    repo.create_user(c, "NoPw", "email", "np@x.com", id="np")
+    assert auth.login_password(c, "np@x.com", "x") is None            # no password set

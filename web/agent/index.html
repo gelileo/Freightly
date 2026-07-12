@@ -41,9 +41,13 @@
 <body>
 <header>
   <h1>Agent Console · 代理控制台</h1>
-  <label class="row">用户 / User ID <input id="uid" placeholder="e.g. op"></label>
-  <button class="primary" onclick="saveUidAndLoad()">登录并加载 / Log in & load</button>
+  <input id="email" placeholder="邮箱 / email" autocomplete="username">
+  <input id="pw" type="password" placeholder="密码 / password" autocomplete="current-password"
+         onkeydown="if(event.key==='Enter')login()">
+  <button class="primary" onclick="login()">登录 / Log in</button>
+  <button onclick="logout()" id="logoutBtn" style="display:none">登出 / Log out</button>
   <span id="who" class="muted"></span>
+  <span id="loginErr" class="muted" style="color:#fca5a5"></span>
 </header>
 
 <div class="layout">
@@ -73,10 +77,10 @@
 
 <script>
 const API = "/api";                   // same-origin; Vercel routes /api/* to the function
-let UID = localStorage.getItem("uid") || "";
+let TOKEN = localStorage.getItem("token") || "";
 let CURRENT = null;
 
-function headers() { return UID ? { "X-User-Id": UID } : {}; }
+function headers() { return TOKEN ? { "Authorization": "Bearer " + TOKEN } : {}; }
 
 async function onboardCustomer() {
   const err = document.getElementById("onbErr"), ok = document.getElementById("onbOk");
@@ -96,6 +100,10 @@ async function api(method, path, body) {
                             opt.body = JSON.stringify(body); }
   const r = await fetch(API + path, opt);
   let data = {}; try { data = await r.json(); } catch (e) {}
+  if (r.status === 401 && path !== "/auth/login" && TOKEN) {   // session expired/invalid
+    logout();
+    document.getElementById("loginErr").textContent = "会话已过期，请重新登录 / session expired";
+  }
   return { status: r.status, data };
 }
 
@@ -108,16 +116,34 @@ function statusPill(st) {
   return `<span class="pill ${cls}">${esc(st)}</span>`;
 }
 
-function saveUidAndLoad() {
-  UID = document.getElementById("uid").value.trim();
-  localStorage.setItem("uid", UID);
-  document.getElementById("who").textContent = UID ? ("as " + UID) : "";
+async function login() {
+  const err = document.getElementById("loginErr"); err.textContent = "";
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("pw").value;
+  if (!email || !password) { err.textContent = "邮箱 + 密码 / email + password"; return; }
+  const { status, data } = await api("POST", "/auth/login", { email, password });
+  if (status !== 200) { err.textContent = data.error || "登录失败 / login failed"; return; }
+  TOKEN = data.session_token; localStorage.setItem("token", TOKEN);
+  document.getElementById("pw").value = "";
+  setSignedIn(data.user && (data.user.name || data.user.id));
   loadCases();
+}
+
+function logout() {
+  TOKEN = ""; localStorage.removeItem("token");
+  setSignedIn(null);
+  document.getElementById("cases").innerHTML = "";
+  document.getElementById("detail").innerHTML = '<p class="muted">选择一个案件。 Select a case.</p>';
+}
+
+function setSignedIn(who) {
+  document.getElementById("who").textContent = who ? ("as " + who) : "";
+  document.getElementById("logoutBtn").style.display = who ? "" : "none";
 }
 
 async function loadCases() {
   const el = document.getElementById("cases");
-  if (!UID) { el.innerHTML = '<p class="err">请先登录 / Log in first</p>'; return; }
+  if (!TOKEN) { el.innerHTML = '<p class="err">请先登录 / Log in first</p>'; return; }
   const { status, data } = await api("GET", "/cases");
   if (status !== 200) { el.innerHTML = `<p class="err">${status} ${esc(data.error||"")}</p>`; return; }
   if (!data.cases.length) { el.innerHTML = '<p class="muted">无案件 / No cases</p>'; return; }
@@ -196,8 +222,7 @@ async function act(caseId, msgId, action) {
   openCase(caseId);
 }
 
-document.getElementById("uid").value = UID;
-if (UID) { document.getElementById("who").textContent = "as " + UID; loadCases(); }
+if (TOKEN) { setSignedIn(true); loadCases(); }   // restore a stored session on load
 </script>
 </body>
 </html>

@@ -87,6 +87,17 @@ access.
 
 Both credentials follow the same rule: strong random value, stored hashed, raw value revealed once.
 
+### Email/password login (agents)
+
+`users.password_hash` (PBKDF2-HMAC-SHA256 via stdlib `hashlib`, `pbkdf2_sha256$iters$salt$hash`)
+holds an agent's password; NULL for wechat/passwordless users. `auth.hash_password`/`verify_password`
+/`set_password`, and `auth.login_password(email, password)` verifies against an `auth_kind='email'`
+user and (on success) mints the **same opaque session** as WeChat (`_mint_session` → `sessions`),
+returning `(token, user)`. Endpoint `POST /auth/login` → `{session_token, user}` (401 on bad
+creds). The **agent console** logs in with email+password and then sends `Authorization: Bearer
+<token>`. Passwords are set out-of-band (no self-serve): `scripts/set_agent_password.py <email>
+<pw>`; `seed_demo.py` sets the demo operator's. The customer web app still uses `X-User-Id` for now.
+
 ## Not in this slice
 
 The case state machine, audit log, and inbound router are Slice 3; the API server and console are

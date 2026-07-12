@@ -45,6 +45,7 @@ sqlite connections aren't thread-shareable).
 | `POST /cases/{id}/messages/{mid}/approve` | → `{message, case}` | member of case's **agent** org |
 | `POST /cases/{id}/messages/{mid}/edit` | `{body}` → `{message, case}` | agent-org member |
 | `POST /cases/{id}/messages/{mid}/reject` | → `{message, case}` | agent-org member |
+| `POST /auth/login` | `{email, password}` → `{session_token, user}` (401 on bad creds) | **public** (no auth) — agent email/password |
 | `POST /auth/wechat/login` | `{js_code}` → `{session_token, user, needs_bind}` | **public** (no auth) |
 | `POST /auth/bind` | `{code}` → `{membership}` | any valid session (membership not required) |
 | `POST /auth/logout` | → `{ok:true}` (revokes the bearer token) | any valid session |

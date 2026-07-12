@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
     name      TEXT NOT NULL,
     auth_kind TEXT NOT NULL CHECK (auth_kind IN ('wechat', 'phone', 'email')),
     auth_id   TEXT NOT NULL UNIQUE,
-    union_id  TEXT
+    union_id  TEXT,
+    password_hash TEXT           -- PBKDF2 (email/password logins); NULL for wechat/passwordless
 );
 CREATE TABLE IF NOT EXISTS memberships (
     user_id TEXT NOT NULL REFERENCES users(id),

@@ -816,3 +816,15 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - Verified live (Playwright): agent onboards a customer → the new login sees the engagement + can
   open a case. Tests: test_router (onboard graph), test_api (flow, 409 collision, agent-only/400).
 - Docs: identity-model.md, api.md, deployment.md, index/log. 138 passed.
+
+## 2026-07-12 — Agent email+password login (real auth for the agent console)
+- users.password_hash (PBKDF2-HMAC-SHA256, stdlib) + auth.hash_password/verify_password/
+  set_password/login_password; login_password mints the same opaque session as WeChat
+  (_mint_session refactor). POST /auth/login {email,password} → {session_token,user} (401 bad).
+- Agent console now logs in with email+password → Authorization: Bearer <token> (localStorage);
+  401 → auto-logout. Customer web app unchanged (X-User-Id) for now.
+- scripts/set_agent_password.py <email> <pw>; seed_demo.py sets demo operator op@justnanoinc.com /
+  'agent-demo'. schema.sql regenerated (password_hash).
+- Verified live (Playwright): bad password rejected (no token); correct password → Bearer session,
+  signed in. Tests: test_auth (hash/verify, login_password), test_api (/auth/login flow). 141 passed.
+- Docs: identity-model.md, api.md, agent-console.md, deployment.md, index/log.

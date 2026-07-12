@@ -3,7 +3,9 @@
 the raw token is returned to the caller once. Time is injectable for deterministic tests."""
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
 import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -38,15 +40,60 @@ def login_wechat(conn, wechat: WeChatClient, js_code: str, *, now=None,
         conn.execute("UPDATE users SET union_id=? WHERE id=?", (sess.unionid, user.id))
         conn.commit()
         user.union_id = sess.unionid
+    token = _mint_session(conn, user.id, now=now, ttl_days=ttl_days, session_key=sess.session_key)
+    needs_bind = not repo.member_org_ids(conn, user.id)
+    return token, user, needs_bind
+
+
+def _mint_session(conn, user_id: str, *, now, ttl_days: int, session_key=None) -> str:
+    """Create + store an opaque session; return the raw token (only its sha256 is persisted)."""
     token = secrets.token_urlsafe(32)
     conn.execute(
         "INSERT INTO sessions (token_hash, user_id, created_at, expires_at, revoked, session_key)"
         " VALUES (?, ?, ?, ?, 0, ?)",
-        (_hash(token), user.id, now.isoformat(), (now + timedelta(days=ttl_days)).isoformat(),
-         sess.session_key))
+        (_hash(token), user_id, now.isoformat(), (now + timedelta(days=ttl_days)).isoformat(),
+         session_key))
     conn.commit()
-    needs_bind = not repo.member_org_ids(conn, user.id)
-    return token, user, needs_bind
+    return token
+
+
+# --- email/password login (agents) ---------------------------------------------
+
+def hash_password(password: str, *, iterations: int = 200_000) -> str:
+    """PBKDF2-HMAC-SHA256 (stdlib, no deps). Returns `pbkdf2_sha256$iters$salt$hash` (b64)."""
+    salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+    return (f"pbkdf2_sha256${iterations}$"
+            f"{base64.b64encode(salt).decode()}${base64.b64encode(dk).decode()}")
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        algo, iters, salt_b64, hash_b64 = stored.split("$")
+        if algo != "pbkdf2_sha256":
+            return False
+        dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"),
+                                 base64.b64decode(salt_b64), int(iters))
+        return hmac.compare_digest(dk, base64.b64decode(hash_b64))
+    except Exception:
+        return False
+
+
+def set_password(conn, user_id: str, password: str) -> None:
+    conn.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(password), user_id))
+    conn.commit()
+
+
+def login_password(conn, email: str, password: str, *, now=None, ttl_days: int = 30):
+    """Verify an email+password against an `auth_kind='email'` user; on success mint a session and
+    return (raw_token, User). Returns None on unknown email / no password set / bad password."""
+    now = _now(now)
+    row = conn.execute("SELECT id, password_hash FROM users WHERE auth_kind='email' AND auth_id=?",
+                       (email,)).fetchone()
+    if row is None or not row["password_hash"] or not verify_password(password, row["password_hash"]):
+        return None
+    token = _mint_session(conn, row["id"], now=now, ttl_days=ttl_days)
+    return token, repo.user_by_auth_id(conn, "email", email)
 
 
 def resolve_session(conn, token: str, *, now=None) -> str | None:
