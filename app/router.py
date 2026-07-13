@@ -157,7 +157,11 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
                           mail_message_id=parsed.message_id or None,
                           in_reply_to=parsed.in_reply_to or None,
                           classification=_classification_json_from_triage(parsed))
-        if existing["status"] == "AWAITING_BROKER":
+        # A broker reply reopens the case from any settled/awaiting state (not just
+        # AWAITING_BROKER) — a second reply after we posted a customer update, or after we sent
+        # the broker a message, must still re-enter the draft-review cycle rather than orphaning
+        # the new draft on a non-approvable case.
+        if existing["status"] in ("AWAITING_BROKER", "SENT_TO_BROKER", "POSTED_TO_CUSTOMER"):
             cases.transition(conn, existing["id"], "REPLY_DRAFTED", actor="system",
                              action="broker_reply_received")
         # Relay the broker's reply to the customer as a Chinese update (approval-gated: the

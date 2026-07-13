@@ -35,10 +35,20 @@ row; an illegal transition raises `ValueError` and writes **no** audit. Map:
 ```
 NEW→DRAFTING; DRAFTING→PENDING_APPROVAL;
 PENDING_APPROVAL→{SENT_TO_BROKER, POSTED_TO_CUSTOMER, DRAFTING, RESOLVED};
-SENT_TO_BROKER→{AWAITING_BROKER, RESOLVED}; POSTED_TO_CUSTOMER→{AWAITING_BROKER, RESOLVED};
+SENT_TO_BROKER→{AWAITING_BROKER, REPLY_DRAFTED, RESOLVED};
+POSTED_TO_CUSTOMER→{AWAITING_BROKER, REPLY_DRAFTED, RESOLVED};
 AWAITING_BROKER→{REPLY_DRAFTED, RESOLVED}; REPLY_DRAFTED→PENDING_APPROVAL;
 RESOLVED→CLOSED
 ```
+**Multi-round (cyclic).** A settled state (`SENT_TO_BROKER`, `POSTED_TO_CUSTOMER`) is **not
+terminal**: another broker reply reopens the draft-review cycle (`→REPLY_DRAFTED→PENDING_APPROVAL`),
+so a case round-trips as many times as the conversation runs. `SENT_TO_BROKER`/`POSTED_TO_CUSTOMER`
+therefore allow `→REPLY_DRAFTED` directly, and `router.ingest_broker_email` reopens from **any** of
+`{AWAITING_BROKER, SENT_TO_BROKER, POSTED_TO_CUSTOMER}` (not just `AWAITING_BROKER`). Before this,
+a 2nd reply after a customer post left the new draft on a `POSTED_TO_CUSTOMER` case, and approving
+it hit `409 illegal transition 'POSTED_TO_CUSTOMER'→'POSTED_TO_CUSTOMER'`. *Known limitation:* a
+reply that arrives while a draft is already pending (`PENDING_APPROVAL`/`REPLY_DRAFTED`) appends a
+second pending draft rather than queuing — not yet handled.
 
 ## Approval gate
 

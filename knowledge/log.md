@@ -929,3 +929,20 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
  draft (Approve/Edit/Reject); header shows "as Agent Operator".
 - Docs: api.md (auth rows + /auth/me), identity-model.md (Console identity gate),
  agent-console.md (+ .zh), customer-web.md (+ .zh), log.
+
+## [2026-07-12] compile | case lifecycle supports multiple broker replies (multi-round)
+
+- Bug (found in live real-mode testing): a case handled ONE broker round-trip cleanly, but a
+ SECOND broker reply broke. After a customer update posted (`POSTED_TO_CUSTOMER`), a new reply
+ arrived; `router.ingest_broker_email` only reopened from `AWAITING_BROKER`, so it added the new
+ Chinese draft but left the case at `POSTED_TO_CUSTOMER`. Approving that draft then tried
+ `POSTED_TO_CUSTOMER→POSTED_TO_CUSTOMER` → **409 illegal transition**.
+- Fix: (1) `cases.ALLOWED` — `SENT_TO_BROKER` and `POSTED_TO_CUSTOMER` now also allow
+ `→REPLY_DRAFTED` (a settled state is not terminal). (2) `ingest_broker_email` reopens from any of
+ `{AWAITING_BROKER, SENT_TO_BROKER, POSTED_TO_CUSTOMER}` → `REPLY_DRAFTED` → `PENDING_APPROVAL`, so
+ the case cycles through N replies. Known limitation left as-is: a reply arriving while a draft is
+ already pending appends a second pending draft (no queuing).
+- Test: `tests/test_router.py::test_second_broker_reply_reopens_posted_case` (reply→post→reply→post,
+ no 409). 142 passed / 13 skipped. Also unstuck the live case `6f3c8a13` (walked it
+ `POSTED_TO_CUSTOMER→REPLY_DRAFTED→PENDING_APPROVAL`).
+- Docs: case-workflow.md (transition map + multi-round note), log.

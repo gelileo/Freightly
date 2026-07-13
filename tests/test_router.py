@@ -113,6 +113,31 @@ def test_broker_reply_relayed_to_customer_as_zh():
     assert cases.get_case(c, "pc1").status == "POSTED_TO_CUSTOMER"
 
 
+def test_second_broker_reply_reopens_posted_case():
+    # regression: a SECOND broker reply arriving after we already POSTED_TO_CUSTOMER must reopen
+    # the draft-review cycle, not orphan the new draft on a non-approvable case (which surfaced as
+    # 409 "illegal transition 'POSTED_TO_CUSTOMER' -> 'POSTED_TO_CUSTOMER'" on approve).
+    c = _net()
+    cases.create_case(c, agent_org_id="a1", customer_org_id="c1", origin="customer",
+                      status="AWAITING_BROKER", mail_thread_id="T1", id="pc1")
+    eml = "tests/fixtures/FFBA BOL# 60112079078.eml"
+    # round 1: reply → draft → approve → POSTED_TO_CUSTOMER
+    router.ingest_broker_email(c, eml=eml, to_mailbox="ltlwest@priority1.com",
+                               thread_id="T1", llm=FakeLlmClient())
+    m1 = c.execute("SELECT id FROM messages WHERE case_id='pc1' "
+                   "AND status='pending_approval'").fetchone()["id"]
+    cases.approve_message(c, m1, "op")
+    assert cases.get_case(c, "pc1").status == "POSTED_TO_CUSTOMER"
+    # round 2: a new reply arrives while POSTED_TO_CUSTOMER → reopens to PENDING_APPROVAL
+    out = router.ingest_broker_email(c, eml=eml, to_mailbox="ltlwest@priority1.com",
+                                     thread_id="T1", llm=FakeLlmClient())
+    assert out.status == "PENDING_APPROVAL"          # reopened, not stuck at POSTED_TO_CUSTOMER
+    m2 = c.execute("SELECT id FROM messages WHERE case_id='pc1' "
+                   "AND status='pending_approval'").fetchone()["id"]
+    cases.approve_message(c, m2, "op")               # no 409 this time
+    assert cases.get_case(c, "pc1").status == "POSTED_TO_CUSTOMER"
+
+
 def test_onboard_customer_creates_org_user_membership_and_active_engagement():
     c = connect(":memory:"); init_db(c)
     repo.create_org(c, "Justnano", "agent", id="a1")

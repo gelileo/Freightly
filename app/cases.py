@@ -19,8 +19,10 @@ ALLOWED: dict[str, set[str]] = {
     "NEW": {"DRAFTING"},
     "DRAFTING": {"PENDING_APPROVAL"},
     "PENDING_APPROVAL": {"SENT_TO_BROKER", "POSTED_TO_CUSTOMER", "DRAFTING", "RESOLVED"},
-    "SENT_TO_BROKER": {"AWAITING_BROKER", "RESOLVED"},
-    "POSTED_TO_CUSTOMER": {"AWAITING_BROKER", "RESOLVED"},
+    # A settled state is not terminal: another broker reply reopens the draft-review cycle
+    # (→ REPLY_DRAFTED), so a case can round-trip as many times as the conversation runs.
+    "SENT_TO_BROKER": {"AWAITING_BROKER", "REPLY_DRAFTED", "RESOLVED"},
+    "POSTED_TO_CUSTOMER": {"AWAITING_BROKER", "REPLY_DRAFTED", "RESOLVED"},
     "AWAITING_BROKER": {"REPLY_DRAFTED", "RESOLVED"},
     "REPLY_DRAFTED": {"PENDING_APPROVAL"},
     "RESOLVED": {"CLOSED"},
