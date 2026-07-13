@@ -31,7 +31,13 @@ HTML while `GET /cases` returns JSON — no route clash. `serve()` defaults `sta
 - **Login bar** — an operator user-id (stored in `localStorage`), sent as `X-User-Id` on every
   request. (Real deployment: a gateway performs WeChat/OAuth login and injects this header; the
   console's field is a dev/stand-in.)
-- **Case list** — `GET /cases` → rows (BOL, issue type, status pill, origin).
+- **Case list** — `GET /cases` → rows (BOL, issue type, status pill, origin). Rows needing the
+  agent's action (status `PENDING_APPROVAL` — a draft awaiting approve/edit/reject; both a new AI
+  draft and a poller-ingested broker reply land here) get a **red "needs action" dot** and sort to
+  the top. The list **auto-refreshes every 30 s** (left column only — never the detail pane, so an
+  in-progress edit is safe) so a poller-ingested reply surfaces without a manual refresh; the dot
+  clears when the case leaves `PENDING_APPROVAL`. This is an *action-needed* cue, not a per-agent
+  *unread* one (true unread-since-last-viewed would need a `last_seen(user,case)` table — deferred).
 - **Case detail** — `GET /cases/{id}` → the message thread + the `pending_approval` draft in an
   editable `<textarea>` (with `[[MISSING: …]]` visible), plus `GET /cases/{id}/audit`.
 - **Actions** — Approve & send (`edit` the current text, then `approve`), Save edit (`edit`),

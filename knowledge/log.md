@@ -946,3 +946,18 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
  no 409). 142 passed / 13 skipped. Also unstuck the live case `6f3c8a13` (walked it
  `POSTED_TO_CUSTOMER→REPLY_DRAFTED→PENDING_APPROVAL`).
 - Docs: case-workflow.md (transition map + multi-round note), log.
+
+## [2026-07-12] compile | agent console: needs-action indicator + auto-refresh (v1)
+
+- Problem: the console showed case state but didn't surface *new* activity — a poller-ingested
+ broker reply (or a fresh draft) was invisible until the operator manually refreshed / clicked in.
+- v1 (frontend-only, `web/agent/index.html`): rows at `PENDING_APPROVAL` (a draft awaiting the
+ agent — where both a new AI draft and an ingested broker reply land) get a **red dot** and sort to
+ the top; the case list **auto-refreshes every 30 s** (left column only, detail pane untouched) so
+ new items appear on their own; the dot clears when the case leaves `PENDING_APPROVAL`. Derived
+ from `GET /cases`'s existing `status` — no schema/API change. It's an *action-needed* cue, not a
+ per-agent *unread* one (v2 `last_seen(user,case)` deferred). Customer-app parity deferred too (a
+ stateless `POSTED_TO_CUSTOMER` dot would never clear without read-tracking).
+- Verified in a real browser (Playwright): dots on the PENDING_APPROVAL rows, sorted above
+ AWAITING_BROKER/DRAFTING. 142 passed / 13 skipped (static console smoke test unaffected).
+- Docs: agent-console.md (Case list), log.

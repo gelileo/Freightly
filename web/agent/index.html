@@ -20,9 +20,15 @@
   .layout { display: grid; grid-template-columns: 340px 1fr; gap: 12px; padding: 12px;
             align-items: start; }
   .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
-  .caserow { padding: 8px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .caserow { position: relative; padding: 8px; border-radius: 8px; cursor: pointer;
+             border: 1px solid transparent; }
   .caserow:hover { background: #f1f5f9; }
   .caserow.sel { background: #eff6ff; border-color: #bfdbfe; }
+  /* action-needed indicator: a draft is waiting for the agent to approve/edit/reject */
+  .caserow.needs::after { content: ""; position: absolute; top: 6px; right: 6px;
+             width: 8px; height: 8px; border-radius: 999px; background: #ef4444;
+             box-shadow: 0 0 0 2px #fff; }
+  .caserow.needs strong { font-weight: 700; }
   .pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px;
           background: #e5e7eb; color: #374151; }
   .pill.await { background: #fef3c7; color: #92400e; }
@@ -254,8 +260,13 @@ async function loadCases() {
   const { status, data } = await api("GET", "/cases");
   if (status !== 200) { el.innerHTML = `<p class="err">${status} ${esc(data.error||"")}</p>`; return; }
   if (!data.cases.length) { el.innerHTML = '<p class="muted">无案件 / No cases</p>'; return; }
-  el.innerHTML = data.cases.map(c => `
-    <div class="caserow ${CURRENT===c.id?'sel':''}" onclick="openCase('${esc(c.id)}')">
+  // "needs action" = a draft is awaiting the agent (case sits at PENDING_APPROVAL). Both a new
+  // AI draft and a poller-ingested broker reply land here — so one flag covers both. Sort those
+  // to the top and mark the row with a red dot so it's scannable without opening the case.
+  const needs = c => c.status === "PENDING_APPROVAL";
+  const rows = data.cases.slice().sort((a, b) => (needs(b) - needs(a)));
+  el.innerHTML = rows.map(c => `
+    <div class="caserow ${CURRENT===c.id?'sel':''} ${needs(c)?'needs':''}" onclick="openCase('${esc(c.id)}')">
       <div class="row" style="justify-content:space-between">
         <strong>${esc(c.shipment_bol||"(no BOL)")}</strong> ${statusPill(c.status)}
       </div>
@@ -344,6 +355,11 @@ async function initSession() {   // restore a stored session on load — verify 
   loadBrokers();
 }
 initSession();
+
+// Auto-refresh the case list so a new draft or a poller-ingested broker reply surfaces (with its
+// red dot) without a manual refresh. Left column only — never re-renders the detail pane, so an
+// in-progress draft edit is untouched. Skips while signed out.
+setInterval(() => { if (TOKEN) loadCases(); }, 30000);
 </script>
 </body>
 </html>
