@@ -41,6 +41,12 @@ def user_by_auth_id(conn, auth_kind, auth_id) -> User | None:
                 auth_id=row["auth_id"], union_id=row["union_id"]) if row else None
 
 
+def get_user(conn, user_id) -> User | None:
+    row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    return User(id=row["id"], name=row["name"], auth_kind=row["auth_kind"],
+                auth_id=row["auth_id"], union_id=row["union_id"]) if row else None
+
+
 def add_member(conn, user_id, org_id, role) -> Membership:
     conn.execute("INSERT INTO memberships (user_id, org_id, role) VALUES (?, ?, ?)",
                  (user_id, org_id, role))

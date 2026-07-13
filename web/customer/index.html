@@ -105,6 +105,10 @@ async function login() {
   if (!email || !password) { err.textContent = "邮箱 + 密码 / email + password"; return; }
   const { status, data } = await api("POST", "/auth/login", { email, password });
   if (status !== 200) { err.textContent = data.error || "登录失败 / login failed"; return; }
+  if (!data.is_customer) {   // an agent account here has no customer cases → would look empty
+    err.textContent = "此账号非客户账号,请用客户账号登录 / Not a customer account — use a customer login";
+    return;
+  }
   TOKEN = data.session_token; localStorage.setItem("ctoken", TOKEN);
   document.getElementById("pw").value = "";
   setSignedIn(data.user && (data.user.name || data.user.id));
@@ -198,7 +202,20 @@ async function submitCase() {
   renderFields(); loadCases(); show("cases");
 }
 
-if (TOKEN) { setSignedIn(true); loadCases(); loadNewCaseData(); }
+async function initSession() {   // restore a stored session on load — verify identity via /auth/me
+  if (!TOKEN) return;
+  const { status, data } = await api("GET", "/auth/me");
+  if (status !== 200) { logout(); return; }          // stale/invalid token
+  if (!data.is_customer) {                            // a non-customer session must not linger here
+    logout();
+    document.getElementById("loginErr").textContent =
+      "此账号非客户账号,请用客户账号登录 / Not a customer account — use a customer login";
+    return;
+  }
+  setSignedIn(data.user && (data.user.name || data.user.id));
+  loadCases(); loadNewCaseData();
+}
+initSession();
 </script>
 </body>
 </html>

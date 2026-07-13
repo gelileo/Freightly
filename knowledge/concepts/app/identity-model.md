@@ -101,6 +101,19 @@ log in with email+password → Bearer session** — the customer's password is s
 (`onboard_customer` accepts a `password` or returns a generated `temp_password` for the agent to
 hand off). `X-User-Id` remains only for tests / trusted internal calls.
 
+### Console identity gate (`is_agent` / `is_customer`, `GET /auth/me`)
+
+`login_password` authenticates **any** user with a password — including a customer account against
+the agent console, which would then silently show empty, draft-less cases (broker drafts are
+withheld from customer sessions server-side in `api._messages`). To stop that confusion, the login
+responses and `GET /auth/me` carry an identity payload (`api._user_payload`): the user's
+`memberships` (`[{org_id, type, role}]`) plus convenience `is_agent` / `is_customer` flags (derived
+from the org types the user belongs to). Each web console **refuses a session that lacks access to
+it** — the agent console requires `is_agent`, the customer app requires `is_customer` — both on
+fresh login and on page-reload via `GET /auth/me` (which is also the source of truth for the
+"as <name>" identity display, replacing a stale client guess). This is a **UX gate only**; the
+authoritative message-visibility boundary is still `_messages` + `access.py`.
+
 ## Not in this slice
 
 The case state machine, audit log, and inbound router are Slice 3; the API server and console are

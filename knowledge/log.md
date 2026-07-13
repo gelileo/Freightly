@@ -907,3 +907,25 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
  edit persisted; removed the test broker afterward.
 - Docs: api.md (route table + 404 note), agent-console.md (+ .zh: three-panel section),
  transport-and-config.md (broker_email now app-configurable, not env), log.
+
+## [2026-07-12] compile | console identity gate (is_agent / is_customer, /auth/me)
+
+- Symptom report: a customer-created case showed PENDING_APPROVAL but "No pending draft" in the
+ agent console. Not a drafting bug — `open_customer_case` does draft synchronously (verified: the
+ draft message exists, and the agent view returns it). Root cause: the console was being viewed
+ with a **customer session**; `_messages` withholds broker drafts from customer sessions
+ server-side, so the agent console (accepting any password login) silently showed an empty,
+ draft-less case. A cosmetic "as true" header (setSignedIn(true) on restore) hid which account
+ was in use.
+- Fix: login responses (`/auth/login`, `/auth/wechat/login`) and a new **`GET /auth/me`** now
+ return `api._user_payload` = `{user, memberships, is_agent, is_customer}` (new `repo.get_user`).
+ Each console refuses a session lacking access to it — agent console requires `is_agent`, customer
+ app requires `is_customer` — on fresh login AND on reload via `/auth/me` (also the source of the
+ real "as <name>" display, fixing "as true"). UX gate only; `_messages` + `access.py` remain the
+ authoritative visibility boundary.
+- Tests: `tests/test_api.py` — login payload flags (op→agent, uc→customer), `/auth/me` identity +
+ 401 without a session. 141 passed / 13 skipped. Verified in a real browser (Playwright): customer
+ login to the agent console is rejected with a clear message; agent login reaches the pending
+ draft (Approve/Edit/Reject); header shows "as Agent Operator".
+- Docs: api.md (auth rows + /auth/me), identity-model.md (Console identity gate),
+ agent-console.md (+ .zh), customer-web.md (+ .zh), log.

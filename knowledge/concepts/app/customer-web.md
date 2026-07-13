@@ -64,3 +64,5 @@ Log in as a customer → New case → agent/broker/issue selects populate → ch
 ## Login (updated 2026-07-12)
 
 The customer app now logs in with **email + password** (`POST /auth/login` → session token, `Authorization: Bearer`), same as the agent console; 401 auto-logs-out. The customer's password is provisioned at onboarding (`onboard_customer` sets it or returns a `temp_password`). Replaces the earlier `X-User-Id` login. See `concepts/app/identity-model.md` → Email/password login.
+
+**Customer-only gate.** Symmetric to the agent console: login/reload check the identity payload's `is_customer` flag and refuse a non-customer session (e.g. an agent account, which has no customer cases) with "Not a customer account — use a customer login". Reload verifies via `GET /auth/me`. UX gate only; access is enforced server-side. See `identity-model.md` → Console identity gate.

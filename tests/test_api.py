@@ -361,6 +361,32 @@ def test_agent_password_login():
     assert _d(c, "POST", "/auth/login", body={"email": email}).status == 400
 
 
+def test_login_payload_has_role_flags():
+    c = _net()
+    from app import auth
+    auth.set_password(c, "op", "pw-op"); auth.set_password(c, "uc", "pw-uc")
+    op_email = c.execute("SELECT auth_id FROM users WHERE id='op'").fetchone()["auth_id"]
+    uc_email = c.execute("SELECT auth_id FROM users WHERE id='uc'").fetchone()["auth_id"]
+    ra = _d(c, "POST", "/auth/login", body={"email": op_email, "password": "pw-op"}).body
+    assert ra["is_agent"] is True and ra["is_customer"] is False
+    assert any(mem["type"] == "agent" and mem["role"] == "admin" for mem in ra["memberships"])
+    rc = _d(c, "POST", "/auth/login", body={"email": uc_email, "password": "pw-uc"}).body
+    assert rc["is_customer"] is True and rc["is_agent"] is False
+
+
+def test_auth_me_identity_and_requires_session():
+    c = _net()
+    from app import auth
+    auth.set_password(c, "uc", "pw-uc")
+    uc_email = c.execute("SELECT auth_id FROM users WHERE id='uc'").fetchone()["auth_id"]
+    tok = _d(c, "POST", "/auth/login",
+             body={"email": uc_email, "password": "pw-uc"}).body["session_token"]
+    r = _d(c, "GET", "/auth/me", headers={"Authorization": f"Bearer {tok}"})
+    assert r.status == 200 and r.body["user"]["id"] == "uc"
+    assert r.body["is_customer"] is True and r.body["is_agent"] is False
+    assert _d(c, "GET", "/auth/me").status == 401         # no session → 401
+
+
 def test_onboard_customer_flow():
     c = _net()   # 'op' is an operator in agent org 'agent'
     r = _d(c, "POST", "/onboard-customer", user="op",

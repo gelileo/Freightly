@@ -240,6 +240,21 @@ def _inbound(req, conn, llm, transport, wechat, m, secret) -> Response:
 
 # --- auth / invites (WeChat-login adapter) --------------------------------------
 
+def _user_payload(conn, user) -> dict:
+    """Identity payload for the frontends: the user plus their org memberships and convenience
+    `is_agent`/`is_customer` flags. The web consoles use the flags to refuse a session that has no
+    access to that console (an agent account in the customer app, or a customer account in the
+    agent console — which otherwise silently shows an empty, draft-less case). This is a UX gate;
+    message visibility is still enforced server-side in `_messages`."""
+    rows = conn.execute(
+        "SELECT m.org_id, o.type, m.role FROM memberships m JOIN orgs o ON o.id = m.org_id "
+        "WHERE m.user_id = ?", (user.id,)).fetchall()
+    memberships = [{"org_id": r["org_id"], "type": r["type"], "role": r["role"]} for r in rows]
+    types = {mem["type"] for mem in memberships}
+    return {"user": asdict(user), "memberships": memberships,
+            "is_agent": "agent" in types, "is_customer": "customer" in types}
+
+
 def _auth_wechat_login(req, conn, llm, transport, wechat, m, _secret) -> Response:
     from app import auth
     js_code = req.body.get("js_code")
@@ -249,8 +264,8 @@ def _auth_wechat_login(req, conn, llm, transport, wechat, m, _secret) -> Respons
         token, user, needs_bind = auth.login_wechat(conn, wechat, js_code)
     except ValueError as e:
         return Response(400, {"error": str(e)})
-    return Response(200, {"session_token": token, "user": asdict(user),
-                          "needs_bind": needs_bind})
+    return Response(200, {"session_token": token, "needs_bind": needs_bind,
+                          **_user_payload(conn, user)})
 
 
 def _auth_login(req, conn, llm, transport, wechat, m, _secret) -> Response:
@@ -262,7 +277,16 @@ def _auth_login(req, conn, llm, transport, wechat, m, _secret) -> Response:
     if result is None:
         return Response(401, {"error": "invalid email or password"})
     token, user = result
-    return Response(200, {"session_token": token, "user": asdict(user)})
+    return Response(200, {"session_token": token, **_user_payload(conn, user)})
+
+
+def _auth_me(req, conn, llm, transport, wechat, m, _secret) -> Response:
+    """Identity of the currently-authenticated session — the source of truth used on page
+    (re)load so a console can gate and display the real account, not a stale localStorage guess."""
+    user = repo.get_user(conn, req.user_id)
+    if user is None:
+        return Response(404, {"error": "no such user"})
+    return Response(200, _user_payload(conn, user))
 
 
 def _auth_bind(req, conn, llm, transport, wechat, m, _secret) -> Response:
@@ -433,6 +457,7 @@ _ROUTES = [
      _message_action("reject"), True),
     ("POST", re.compile(r"^/auth/login$"), _auth_login, False),
     ("POST", re.compile(r"^/auth/wechat/login$"), _auth_wechat_login, False),
+    ("GET", re.compile(r"^/auth/me$"), _auth_me, True),
     ("POST", re.compile(r"^/auth/bind$"), _auth_bind, True),
     ("POST", re.compile(r"^/auth/logout$"), _auth_logout, True),
     ("POST", re.compile(r"^/invites$"), _create_invite, True),

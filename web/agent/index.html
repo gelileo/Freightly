@@ -224,6 +224,10 @@ async function login() {
   if (!email || !password) { err.textContent = "邮箱 + 密码 / email + password"; return; }
   const { status, data } = await api("POST", "/auth/login", { email, password });
   if (status !== 200) { err.textContent = data.error || "登录失败 / login failed"; return; }
+  if (!data.is_agent) {   // a customer account here would silently show empty, draft-less cases
+    err.textContent = "此账号非代理账号,请用代理账号登录 / Not an agent account — use an agent login";
+    return;
+  }
   TOKEN = data.session_token; localStorage.setItem("token", TOKEN);
   document.getElementById("pw").value = "";
   setSignedIn(data.user && (data.user.name || data.user.id));
@@ -325,7 +329,21 @@ async function act(caseId, msgId, action) {
   openCase(caseId);
 }
 
-if (TOKEN) { setSignedIn(true); loadCases(); loadBrokers(); }   // restore a stored session on load
+async function initSession() {   // restore a stored session on load — verify identity via /auth/me
+  if (!TOKEN) return;
+  const { status, data } = await api("GET", "/auth/me");
+  if (status !== 200) { logout(); return; }          // stale/invalid token
+  if (!data.is_agent) {                               // a non-agent session must not linger here
+    logout();
+    document.getElementById("loginErr").textContent =
+      "此账号非代理账号,请用代理账号登录 / Not an agent account — use an agent login";
+    return;
+  }
+  setSignedIn(data.user && (data.user.name || data.user.id));
+  loadCases();
+  loadBrokers();
+}
+initSession();
 </script>
 </body>
 </html>
