@@ -13,6 +13,7 @@ also relayed to the customer as an approval-gated Chinese message via
 `engine.drafting.summarize_for_customer` (Slice 8)."""
 from __future__ import annotations
 
+import email.utils
 import json
 import secrets
 
@@ -21,6 +22,41 @@ from scripts.triage import triage
 from app import repo, cases, forms
 from app.models import Case
 from engine.drafting import DraftRequest, draft as engine_draft, summarize_for_customer
+
+# Free-mail providers: a shared broker address on one of these (e.g. a gmail test recipient) must
+# match EXACTLY — we never admit a whole free-mail domain as "the broker" (that would let any
+# gmail sender spawn a case).
+_FREE_EMAIL_DOMAINS = {"gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com",
+                       "live.com", "icloud.com", "aol.com", "qq.com", "163.com", "126.com"}
+
+
+def _addr(raw) -> tuple[str, str]:
+    """('a@b.com', 'b.com') from a From header like 'Name <a@b.com>'. Lowercased; ('','') if none."""
+    e = email.utils.parseaddr(raw or "")[1].lower()
+    return e, (e.rsplit("@", 1)[-1] if "@" in e else "")
+
+
+def _is_admissible_new(conn, agent_org_id, parsed) -> bool:
+    """Whether an inbound email with no matching thread should spawn a NEW broker-origin case.
+    Admit only mail plausibly about our business — from a configured broker (exact address, or its
+    corporate domain), or referencing a BOL we already track — so spam and unrelated business mail
+    in the shared mailbox don't clutter the queue. Thread-replies never reach here (they match an
+    existing case first)."""
+    sender, sdomain = _addr(parsed.sender)
+    for r in conn.execute("SELECT broker_email FROM broker_accounts "
+                          "WHERE agent_org_id=? AND broker_email IS NOT NULL", (agent_org_id,)):
+        be = r["broker_email"].lower()
+        if sender and sender == be:
+            return True                                   # exact broker address
+        bdomain = be.rsplit("@", 1)[-1] if "@" in be else ""
+        if sdomain and bdomain == sdomain and sdomain not in _FREE_EMAIL_DOMAINS:
+            return True                                   # same corporate domain as a known broker
+    if parsed.bol:                                        # references a BOL we already track
+        placeholders = ",".join("?" * len(parsed.bol))
+        if conn.execute(f"SELECT 1 FROM cases WHERE shipment_bol IN ({placeholders}) LIMIT 1",
+                        tuple(parsed.bol)).fetchone():
+            return True
+    return False
 
 
 def _classification_json(result) -> str:
@@ -174,6 +210,14 @@ def ingest_broker_email(conn, *, eml, to_mailbox, llm, thread_id=None) -> Case |
             cases.transition(conn, existing["id"], "PENDING_APPROVAL", actor="system",
                              action="draft_ready")
         return cases.get_case(conn, existing["id"])  # fresh status after any transition
+
+    # Admission filter: the shared mailbox also receives spam and unrelated business mail. Only
+    # spawn a NEW case for recognized senders/BOLs; skip the rest (before the LLM draft, so spam
+    # never costs a Gemini call). Returns None like triage=skip → poller advances its watermark.
+    if not _is_admissible_new(conn, agent_org_id, parsed):
+        print(f"inbound: skipped unrecognized email from {parsed.sender!r} "
+              f"(not a known broker, no known BOL); msg-id {parsed.message_id!r}")
+        return None
 
     # new broker-initiated case (customer attribution deferred — starts unattributed).
     # Draft FIRST (fallible LLM) so a transient failure creates no orphan case/message and the

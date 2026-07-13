@@ -11,7 +11,8 @@ def _net():
     repo.create_org(c, "Agent", "agent", id="a1")
     repo.create_engagement(c, "c1", "a1", id="e1"); repo.approve_engagement(c, "e1")
     repo.create_broker(c, "Priority-1", id="b1")
-    repo.connect_broker_account(c, "a1", "b1", mailbox="ltlwest@priority1.com", id="ba1")
+    repo.connect_broker_account(c, "a1", "b1", mailbox="ltlwest@priority1.com",
+                                broker_email="dispatch@priority1.com", id="ba1")
     return c
 
 
@@ -70,6 +71,44 @@ def test_ingest_new_broker_case_creates_pending_draft():
     statuses = {r["status"] for r in
                 c.execute("SELECT status FROM messages WHERE case_id=?", (case.id,))}
     assert "received" in statuses and "pending_approval" in statuses
+
+
+def test_ingest_admits_known_broker_by_domain():
+    # FFBA is from wjerry@priority1.com; the broker account's broker_email is dispatch@priority1.com
+    # → same corporate domain → admitted as a new broker-origin case (covered by the test above,
+    # asserted explicitly here for the admission rule).
+    c = _net()
+    out = router.ingest_broker_email(c, eml="tests/fixtures/FFBA BOL# 60112079078.eml",
+                                     to_mailbox="ltlwest@priority1.com", llm=FakeLlmClient())
+    assert out is not None and out.origin == "broker"
+
+
+def test_ingest_skips_unrecognized_sender():
+    # A broker account on a DIFFERENT domain, and the email references no BOL we track → the
+    # FFBA email (from priority1.com) is spam-equivalent here and must NOT create a case.
+    c = connect(":memory:"); init_db(c)
+    repo.create_org(c, "Agent", "agent", id="a1")
+    repo.create_broker(c, "ODFL", id="b1")
+    repo.connect_broker_account(c, "a1", "b1", mailbox="ops@justnano.example",
+                                broker_email="dispatch@odfl.com", id="ba1")
+    out = router.ingest_broker_email(c, eml="tests/fixtures/FFBA BOL# 60112079078.eml",
+                                     to_mailbox="ops@justnano.example", llm=FakeLlmClient())
+    assert out is None
+    assert c.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 0
+    assert c.execute("SELECT COUNT(*) FROM messages").fetchone()[0] == 0
+
+
+def test_ingest_admits_unknown_sender_when_bol_is_known():
+    # Unknown sender, but the email references BOL 60112079078 which we already track → admit.
+    c = connect(":memory:"); init_db(c)
+    repo.create_org(c, "Agent", "agent", id="a1")
+    repo.create_broker(c, "ODFL", id="b1")
+    repo.connect_broker_account(c, "a1", "b1", mailbox="ops@justnano.example",
+                                broker_email="dispatch@odfl.com", id="ba1")
+    cases.create_case(c, agent_org_id="a1", origin="customer", bol="60112079078", id="known1")
+    out = router.ingest_broker_email(c, eml="tests/fixtures/FFBA BOL# 60112079078.eml",
+                                     to_mailbox="ops@justnano.example", llm=FakeLlmClient())
+    assert out is not None and out.origin == "broker"   # admitted on the known-BOL signal
 
 
 def test_ingest_unknown_mailbox_raises():

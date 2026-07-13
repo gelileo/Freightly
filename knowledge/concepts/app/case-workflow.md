@@ -64,9 +64,18 @@ Approving a non-pending message raises.
   `pending_approval`, case → PENDING_APPROVAL.
 - `ingest_broker_email(..., to_mailbox, ...)` — parse via `scripts.parse_eml`; `triage`:
   `skip` → return None, create nothing; matches an existing case by `mail_thread_id` → append
-  a `received` broker message + draft a reply; else create a broker-origin (unattributed) case
-  + draft. The owning agent is resolved from `to_mailbox` via `repo.agent_for_mailbox` (raises
-  if the mailbox is unknown). **Limitation:** `thread_id` is currently **caller-supplied**;
+  a `received` broker message + draft a reply; else — subject to the **admission filter** below —
+  create a broker-origin (unattributed) case + draft. The owning agent is resolved from
+  `to_mailbox` via `repo.agent_for_mailbox` (raises if the mailbox is unknown).
+- **Admission filter (`_is_admissible_new`).** The shared mailbox also receives spam and unrelated
+  business mail; without a gate, every new message spawned a `(no BOL)` case. A NEW case is created
+  only when the email is plausibly ours: sender is a **configured broker** — exact `broker_email`,
+  or the same **corporate domain** as one (free-mail domains like gmail require an exact match, so
+  a gmail test broker doesn't admit all of gmail) — **or** it references a **BOL we already track**.
+  Otherwise `ingest_broker_email` returns `None` (logged), like `triage=skip`, so the poller
+  advances its watermark and nothing is created. Runs **before** the LLM draft, so skipped spam
+  costs no Gemini call. Thread-replies bypass the filter (they match an existing case first).
+- **Limitation:** `thread_id` is currently **caller-supplied**;
   deriving it from the email's `Message-ID`/`References`/`In-Reply-To` headers is deferred
   (`scripts.parse_eml.ParsedEmail` does not yet expose those headers). Until that lands, real
   inbound integration must supply `thread_id`, or every broker email creates a new case.

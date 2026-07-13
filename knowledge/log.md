@@ -961,3 +961,23 @@ contact/"team". Needs a prompt refinement + broker-contact resolution (default "
 - Verified in a real browser (Playwright): dots on the PENDING_APPROVAL rows, sorted above
  AWAITING_BROKER/DRAFTING. 142 passed / 13 skipped (static console smoke test unaffected).
 - Docs: agent-console.md (Case list), log.
+
+## [2026-07-12] compile | inbound admission filter (stop spam spawning cases)
+
+- Problem (seen in live testing): the poller ingests EVERY new message in the shared mailbox, so
+ spam (amazonses, localvolvodealer) and unrelated business mail (a real cns-express.com claim
+ inquiry) each became a `(no BOL)` broker case — clutter. Body-triage's `skip` only catches
+ promo/statement patterns, not general spam.
+- Fix (`router._is_admissible_new`, gate before the new-case draft): a NEW broker-origin case is
+ created only when the email is a **configured broker** (exact `broker_email`, or same corporate
+ domain — free-mail domains require exact match so a gmail test broker can't admit all of gmail)
+ **or** references a **BOL we already track**; else return `None` (logged), like `triage=skip`.
+ Runs before the LLM draft, so skipped spam costs no Gemini call and can't trip the poller's
+ break-on-LLM-error path. Thread-replies bypass the filter (matched to an existing case first).
+- Because broker matching keys on `broker_email`, the two test fixtures that connect a broker
+ account now set it (`dispatch@priority1.com`) so legit broker mail is admitted by domain.
+- Tests (`tests/test_router.py`): admit-by-broker-domain, skip-unrecognized-sender,
+ admit-unknown-sender-when-BOL-known. 145 passed / 13 skipped.
+- Ops: restarted web + poller to load the new code; deleted 5 already-ingested noise cases from
+ the live `hs.db` (only the 2 legitimate customer cases remain).
+- Docs: case-workflow.md (Inbound router → admission filter), log.

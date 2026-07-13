@@ -14,7 +14,8 @@ def _org_setup(c):
     repo.add_member(c, "op", "agent", "operator")
     repo.create_engagement(c, "cust", "agent", id="eng"); repo.approve_engagement(c, "eng")
     repo.create_broker(c, "Priority-1", id="p1")
-    repo.connect_broker_account(c, "agent", "p1", mailbox="ltlwest@priority1.com", id="ba")
+    repo.connect_broker_account(c, "agent", "p1", mailbox="ltlwest@priority1.com",
+                                broker_email="dispatch@priority1.com", id="ba")
 
 
 def test_broker_initiated_end_to_end():
